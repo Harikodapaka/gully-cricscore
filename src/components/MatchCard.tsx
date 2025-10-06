@@ -5,7 +5,7 @@ import React from 'react';
 import { StatusBadge } from './StatusBadge';
 import { TeamScore } from './TeamScore';
 import { MatchResult } from './MatchResult';
-import { MatchDetails } from './MatchDetails';
+import { MatchInfo } from './MatchInfo';
 
 
 interface MatchCardProps {
@@ -60,7 +60,7 @@ export default function MatchCard({
                 <MatchResult winner={winner} />
             </div>
 
-            <MatchDetails date={date} venue={venue} />
+            <MatchInfo date={date} venue={venue} />
         </div>
     );
 }

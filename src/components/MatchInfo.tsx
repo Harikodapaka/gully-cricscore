@@ -1,4 +1,4 @@
-export const MatchDetails = ({
+export const MatchInfo = ({
     date,
     venue
 }: {
