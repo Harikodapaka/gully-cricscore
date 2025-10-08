@@ -33,7 +33,7 @@ export default function UmpireScorePage() {
 
         const fetchMatchData = async () => {
             try {
-                const response = await fetch(`http://localhost:3000/api/match/${matchId}`);
+                const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/match/${matchId}`);
                 if (!response.ok) {
                     throw new Error('Failed to fetch match data');
                 }
@@ -100,7 +100,7 @@ export default function UmpireScorePage() {
             setWickets(w => w + 1);
         }
         try {
-            fetch('http://localhost:3000/api/ball', {
+            fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/ball`, {
                 method: 'POST',
                 body: JSON.stringify(body),
                 headers: { "Content-Type": "application/json" },
