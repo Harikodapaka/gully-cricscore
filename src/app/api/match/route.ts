@@ -4,6 +4,8 @@ import Match from "@/models/Match";
 import Ball from "@/models/Ball";
 import Team from "@/models/Team";
 import Innings from "@/models/Innings";
+import { IInnings } from "@/models/Innings";
+import { Types } from "mongoose";
 
 interface MatchRequestBody {
     location: string;
@@ -105,7 +107,7 @@ export async function POST(req: NextRequest) {
         });
 
         // 4️⃣ Create First Innings
-        const innings = await Innings.create({
+        const innings: IInnings = await Innings.create({
             inningsNumber: 1,
             battingTeamId: tossWonBy === 'teamA' ? teamA._id : teamB._id,
             bowlingTeamId: tossWonBy === 'teamA' ? teamB._id : teamA._id,
@@ -113,7 +115,7 @@ export async function POST(req: NextRequest) {
         });
 
         // 5️⃣ Link Innings to Match
-        match.innings.push(innings._id);
+        match.innings.push(innings._id as Types.ObjectId);
         await match.save();
 
         // 6️⃣ Populate full match data
