@@ -8,7 +8,7 @@ export const TeamScore = ({
     name: string;
     runs: number;
     wickets: number;
-    overs: number;
+    overs: string;
     hasBorder?: boolean;
 }) => (
     <div className={hasBorder ? "border-t border-gray-300 mt-2 pt-2" : ""}>

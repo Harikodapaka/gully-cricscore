@@ -1,6 +1,5 @@
 'use client';
 
-import { useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Roles } from '@/types/roles';
@@ -12,12 +11,9 @@ import { StartMatchForm } from './startMatchForm';
 export default function UmpirePage() {
     const { data: session, status } = useSession();
     const router = useRouter();
-    const [matches, setMatches] = useState([]);
-    const [selectedMatch, setSelectedMatch] = useState(null);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [loading, setLoading] = useState(true);
-    const emailRef = useRef<HTMLInputElement>(null);
+
     const goToHome = () => router.push('/');
+
 
     if (status === 'unauthenticated') {
         return (
@@ -49,6 +45,7 @@ export default function UmpirePage() {
             />
         </div>)
     }
+
 
     return (
         <div className={PageContainer}>

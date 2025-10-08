@@ -31,7 +31,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         const errorMessage = typeof error === 'string' ? error : error?.message;
         const hasError = Boolean(errorMessage);
 
-        const baseInputClasses = `
+        const baseInputClasses = `h-10 
       mt-0.5 pl-2 w-full rounded border shadow-sm sm:text-sm
       transition-colors duration-200
       ${disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}

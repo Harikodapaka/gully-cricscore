@@ -2,12 +2,13 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { useParams, usePathname } from 'next/navigation';
 import { BlueBtn, OrangeBtn } from './Styles';
 import { signOut, useSession } from 'next-auth/react';
 
 export default function Header() {
     const pathname = usePathname();
+    const { id } = useParams();
     const { status } = useSession();
 
     return (<header className="bg-white border-b border-[#e9e9e9]">
@@ -23,14 +24,24 @@ export default function Header() {
                     priority
                 />
             </Link>
-            {pathname === '/' && <Link
-                className={`${BlueBtn} ml-auto`}
-                href="/umpire"
-            >
-                Start Match
-            </Link>}
-            {pathname === '/umpire' && status === 'authenticated' && <button className={`${OrangeBtn} ml-auto`}
-                onClick={() => signOut()}>Sign out</button>}
+            <div className='ml-auto flex gap-4 items-center'>
+                {pathname === '/' && <Link
+                    className={`${BlueBtn}`}
+                    href="/umpire"
+                >
+                    Start Match
+                </Link>}
+
+                {pathname.includes('/matches/') && <Link
+                    className={`${BlueBtn}`}
+                    href={`/umpire/${id}`}
+                >
+                    Record Score
+                </Link>}
+
+                {status === 'authenticated' && <button className={`${OrangeBtn}`}
+                    onClick={() => signOut()}>Sign out</button>}
+            </div>
         </div>
     </header>
 

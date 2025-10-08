@@ -1,13 +1,44 @@
+'use client';
+
 import { useForm } from 'react-hook-form';
 import Input from '@/components/Input';
 import { BlueBtn } from '@/components/Styles';
+import RadioGroup from '@/components/RadioGroup';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export function StartMatchForm() {
-    const { register, handleSubmit, formState: { errors }, setValue } = useForm();
+    const { register, handleSubmit, formState, setValue, getValues } = useForm();
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const { errors } = formState
+    const { push } = useRouter();
 
-    const onSubmit = (data: any) => {
-        console.log(data);
-    };
+    async function createMatch(formData: any) {
+        setLoading(true);
+        setError(null);
+
+        try {
+            const res = await fetch("/api/match", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(formData),
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || "Failed to create match");
+            }
+
+            const data: any = await res.json();
+            sessionStorage.setItem('matchId', data._id);
+            push(`/umpire?matchId=${data._id}`);
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    }
 
     const setOvers = (value: number) => {
         setValue('totalOvers', value, { shouldValidate: true });
@@ -18,7 +49,7 @@ export function StartMatchForm() {
     };
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(createMatch)} className="space-y-4">
             <Input
                 label="Location"
                 type="string"
@@ -116,6 +147,20 @@ export function StartMatchForm() {
                     </button>
                 </div>
             </div>
+            <div>
+                <RadioGroup
+                    label="Toss won by"
+                    options={[
+                        { value: 'teamA', label: 'Team A' },
+                        { value: 'teamB', label: 'Team B' }
+                    ]}
+                    {...register('tossWonBy', {
+                        required: 'Please select which team won the toss'
+                    })}
+                    error={errors.tossWonBy?.message}
+                    required
+                />
+            </div>
 
             <div>
                 <Input
@@ -161,7 +206,7 @@ export function StartMatchForm() {
                 </div>
             </div>
 
-            <button type="submit" className={`${BlueBtn} mt-4`}>Start Match</button>
+            <button type="submit" className={`${BlueBtn} mt-4`} disabled={loading}>Start Match </button>
         </form>
     );
 }

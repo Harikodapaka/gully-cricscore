@@ -4,7 +4,7 @@ import { TabSwitcher } from "@/components/TabSwitcher";
 import { TeamScore } from "@/components/TeamScore";
 import { getRunMessage, getRunsIcon } from "./utils";
 import { OVERS_TO_DISPLAY } from "./constants";
-import { CardBase, PageContainer } from "@/components/Styles";
+import { BlueBtn, CardBase, PageContainer } from "@/components/Styles";
 
 
 interface TeamData {
@@ -66,14 +66,14 @@ const ScoreCard = ({
             name={teamA.name}
             runs={teamA.runs}
             wickets={teamA.wickets}
-            overs={teamA.overs}
+            overs={teamA.overs.toString()}
         />
-        <p>vs</p>
+        <p className="font-bold">VS</p>
         <TeamScore
             name={teamB.name}
             runs={teamB.runs}
             wickets={teamB.wickets}
-            overs={teamB.overs}
+            overs={teamB.overs.toString()}
         />
     </div>
 );
