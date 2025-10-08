@@ -1,46 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import dbConnect from "@/lib/mongodb";
-import Innings from "@/models/Innings";
-import Ball from "@/models/Ball";
 import { isValidObjectId } from "mongoose";
+import dbConnect from "@/lib/mongodb";
+import Innings, { IInnings } from "@/models/Innings";
+import Ball, { IBall } from "@/models/Ball";
+import { ITeam } from "@/models/Team";
 
 interface RouteParams {
-    params: { inningsId: string };
+    params: Promise<{ inningsId: string }>;
 }
 
-interface BallDocument {
-    overNumber: number;
-    ballNumber: number;
-    [key: string]: any;
-}
+export async function GET(_req: NextRequest, context: RouteParams) {
+    const { inningsId } = await context.params;
 
-interface InningsDocument {
-    _id: string;
-    inningsNumber: number;
-    battingTeamId: any;
-    bowlingTeamId: any;
-    score: number;
-    wickets: number;
-    status: string;
-    startedAt: string;
-    totalOvers?: number;
-    __v: number;
-    [key: string]: any;
-}
-
-interface InningsResponse extends InningsDocument {
-    oversCompleted: string;
-}
-
-
-
-export async function GET(
-    req: NextRequest,
-    { params }: RouteParams
-): Promise<NextResponse<InningsResponse | { message: string; error?: string }>> {
-    const { inningsId } = params;
-
-    // Validate MongoDB ObjectId format
     if (!isValidObjectId(inningsId)) {
         return NextResponse.json(
             { message: "Invalid innings ID format" },
@@ -51,15 +22,18 @@ export async function GET(
     try {
         await dbConnect();
 
-        // Fetch innings and last ball in parallel for better performance
         const [inningsDoc, lastBall] = await Promise.all([
             Innings.findById(inningsId)
-                .populate("battingTeamId")
-                .populate("bowlingTeamId")
-                .lean(),
+                .populate("battingTeamId", "-__v")
+                .populate("bowlingTeamId", "-__v")
+                .select("-__v")
+                .lean()
+                .exec(),
             Ball.findOne({ inningsId })
                 .sort({ overNumber: -1, ballNumber: -1 })
+                .select("overNumber ballNumber")
                 .lean()
+                .exec()
         ]);
 
         if (!inningsDoc) {
@@ -70,23 +44,22 @@ export async function GET(
         }
 
         const oversCompleted = lastBall
-            ? `${(lastBall as any).overNumber}.${(lastBall as any).ballNumber}`
+            ? `${lastBall.overNumber}.${lastBall.ballNumber}`
             : "0.0";
 
-        // Merge innings data with calculated oversCompleted
-        const response: InningsResponse = {
-            ...(inningsDoc as unknown as InningsDocument),
+        return NextResponse.json({
+            ...(inningsDoc as any),
             oversCompleted
-        };
-
-        return NextResponse.json(response);
+        });
     } catch (error) {
         console.error(`Error fetching innings ${inningsId}:`, error);
 
         return NextResponse.json(
             {
                 message: "Failed to fetch innings data",
-                error: error instanceof Error ? error.message : "Unknown error"
+                error: process.env.NODE_ENV === "development"
+                    ? (error instanceof Error ? error.message : "Unknown error")
+                    : "Internal server error"
             },
             { status: 500 }
         );
