@@ -1,4 +1,6 @@
 import mongoose, { Document, Model, Schema, Types } from "mongoose";
+import { ITeam } from "./Team";
+import { IPopulatedInnings } from "./Innings";
 
 export interface IMatch extends Document {
     location: string;
@@ -9,6 +11,14 @@ export interface IMatch extends Document {
     completedAt?: Date;
     teams: Types.ObjectId[];
     innings: Types.ObjectId[];
+    wonBy?: Types.ObjectId;
+    winnerMessage?: string;
+}
+
+export interface IMatchPopulated extends Omit<IMatch, 'teams' | 'innings' | 'wonBy'> {
+    teams: ITeam[];
+    innings: IPopulatedInnings[];
+    wonBy?: string;
 }
 
 const MatchSchema = new Schema<IMatch>({
@@ -20,6 +30,8 @@ const MatchSchema = new Schema<IMatch>({
     completedAt: { type: Date },
     teams: [{ type: Schema.Types.ObjectId, ref: "Team" }],
     innings: [{ type: Schema.Types.ObjectId, ref: "Innings" }],
+    wonBy: { type: Schema.Types.ObjectId, ref: "Team" },
+    winnerMessage: { type: String }
 });
 
 const Match: Model<IMatch> = mongoose.models.Match || mongoose.model<IMatch>("Match", MatchSchema);

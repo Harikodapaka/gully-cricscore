@@ -90,7 +90,7 @@ const RadioGroup = forwardRef<HTMLInputElement, RadioGroupProps>(
         return (
             <div className="space-y-2">
                 <fieldset className="space-y-3">
-                    <legend className="text-sm font-medium text-gray-900">
+                    <legend className="text-sm font-medium text-gray-900 dark:text-gray-300">
                         {label}
                         {required && <span className="text-red-500 ml-1">*</span>}
                     </legend>

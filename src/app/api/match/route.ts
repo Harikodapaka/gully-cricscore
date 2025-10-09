@@ -29,7 +29,10 @@ export async function GET() {
                     { path: 'bowlingTeamId', select: 'name' },
                 ],
             })
-            .populate('teams');
+            .populate('teams')
+            .sort({
+                createdAt: -1        // Then by creation date (newest first)
+            });
 
         // For each match, attach oversCompleted from latest Ball
         const matchesWithOvers = await Promise.all(

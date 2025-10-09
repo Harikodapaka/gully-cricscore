@@ -32,7 +32,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         const hasError = Boolean(errorMessage);
 
         const baseInputClasses = `h-10 
-      mt-0.5 pl-2 w-full rounded border shadow-sm sm:text-sm
+      mt-0.5 pl-2 w-full rounded border shadow-sm sm:text-sm dark:text-black
       transition-colors duration-200
       ${disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}
       ${hasError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}
@@ -41,7 +41,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
 
         const baseLabelClasses = `
       text-sm font-medium
-      ${hasError ? 'text-red-600' : 'text-gray-700'}
+      ${hasError ? 'text-red-600' : 'text-gray-700 dark:text-gray-300'}
       ${disabled ? 'text-gray-400' : ''}
       ${labelClassName}
     `.trim();

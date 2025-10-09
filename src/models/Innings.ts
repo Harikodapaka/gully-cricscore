@@ -11,6 +11,12 @@ export interface IInnings extends Document {
     completedAt?: Date;
 }
 
+export interface IPopulatedInnings extends Omit<IInnings, 'battingTeamId' | 'bowlingTeamId'> {
+    oversCompleted: string;
+    battingTeamId: any;
+    bowlingTeamId: any;
+}
+
 const InningsSchema = new Schema<IInnings>({
     inningsNumber: { type: Number, enum: [1, 2], required: true },
     battingTeamId: { type: Schema.Types.ObjectId, ref: "Team", required: true },

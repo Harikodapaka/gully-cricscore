@@ -2,17 +2,18 @@
 
 import { useForm } from 'react-hook-form';
 import Input from '@/components/Input';
-import { BlueBtn } from '@/components/Styles';
+import { BlueBtn, SmallBtns } from '@/components/Styles';
 import RadioGroup from '@/components/RadioGroup';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import LoadingOverlay from '@/components/LoadingOverlay';
 
 export function StartMatchForm() {
-    const { register, handleSubmit, formState, setValue, getValues } = useForm();
+    const { register, handleSubmit, formState, setValue } = useForm();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const { errors } = formState
-    const { push } = useRouter();
+    const router = useRouter();
 
     async function createMatch(formData: any) {
         setLoading(true);
@@ -32,7 +33,7 @@ export function StartMatchForm() {
 
             const data: any = await res.json();
             sessionStorage.setItem('matchId', data._id);
-            push(`/umpire?matchId=${data._id}`);
+            router.replace(`/umpire/${data._id}`);
         } catch (err: any) {
             setError(err.message);
         } finally {
@@ -108,6 +109,7 @@ export function StartMatchForm() {
                 <Input
                     label="Number of players in each team"
                     type="number"
+                    min={1}
                     {...register('noOfPlayers', {
                         required: 'Number of players is required',
                         min: {
@@ -118,7 +120,8 @@ export function StartMatchForm() {
                             value: 11,
                             message: 'Cannot exceed 11 players'
                         },
-                        valueAsNumber: true
+                        valueAsNumber: true,
+                        validate: value => value >= 1 || 'Number must be positive'
                     })}
                     error={errors.noOfPlayers?.message}
                     required
@@ -127,21 +130,21 @@ export function StartMatchForm() {
                     <button
                         type="button"
                         onClick={() => setPlayers(5)}
-                        className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded"
+                        className={SmallBtns}
                     >
                         5 Players
                     </button>
                     <button
                         type="button"
                         onClick={() => setPlayers(10)}
-                        className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded"
+                        className={SmallBtns}
                     >
                         10 Players
                     </button>
                     <button
                         type="button"
                         onClick={() => setPlayers(11)}
-                        className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded"
+                        className={SmallBtns}
                     >
                         11 Players
                     </button>
@@ -166,6 +169,7 @@ export function StartMatchForm() {
                 <Input
                     label="Total overs"
                     type="number"
+                    min={1}
                     {...register('totalOvers', {
                         required: 'Total overs is required',
                         min: {
@@ -176,7 +180,8 @@ export function StartMatchForm() {
                             value: 50,
                             message: 'Cannot exceed 50 overs'
                         },
-                        valueAsNumber: true
+                        valueAsNumber: true,
+                        validate: value => value > 0 || 'Total overs must be positive'
                     })}
                     error={errors.totalOvers?.message}
                     required
@@ -185,28 +190,36 @@ export function StartMatchForm() {
                     <button
                         type="button"
                         onClick={() => setOvers(5)}
-                        className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded"
+                        className={SmallBtns}
                     >
                         5 Overs
                     </button>
                     <button
                         type="button"
                         onClick={() => setOvers(10)}
-                        className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded"
+                        className={SmallBtns}
                     >
                         10 Overs
                     </button>
                     <button
                         type="button"
                         onClick={() => setOvers(15)}
-                        className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded"
+                        className={SmallBtns}
                     >
                         15 Overs
                     </button>
                 </div>
             </div>
 
-            <button type="submit" className={`${BlueBtn} mt-4`} disabled={loading}>Start Match </button>
+            <button
+                type="submit"
+                className={`${BlueBtn} mt-4 ${loading || !formState.isValid ? 'bg-gray-400 cursor-not-allowed' : ''}`}
+                disabled={loading || !formState.isValid}
+            >
+                Start Match
+            </button>
+            {error && <p className="text-red-500">{error}</p>}
+            {loading && <LoadingOverlay />}
         </form>
     );
 }

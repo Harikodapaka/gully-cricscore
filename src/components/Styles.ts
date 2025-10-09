@@ -8,3 +8,5 @@ export const BtnIcon = `inline-block rounded-full border border-indigo-600 bg-in
 export const CardBase = `rounded-md border border-gray-300 shadow-sm`;
 
 export const PageContainer = `mx-auto max-w-2xl px-4 py-6`;
+
+export const SmallBtns = `px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200`;

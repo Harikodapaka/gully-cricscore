@@ -1,22 +1,21 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
-import { useParams, useRouter } from 'next/navigation';
-import { Roles } from '@/types/roles';
+import { useParams } from 'next/navigation';
 import { BlueBtnOutlined, PageContainer } from '@/components/Styles';
-import Alert from '@/components/Alert';
 import Modal from '@/components/Modal';
 import { TrackScoreProps, UmpireControls } from '@/components/UmpireControls';
 import { useEffect, useState } from 'react';
-import { UnauthenticatedPage } from '../unauthenticatedPage';
+import { IMatchPopulated } from '@/models/Match';
+import Link from 'next/link';
+import { ITeam } from '@/models/Team';
+import { IInnings } from '@/models/Innings';
+import LoadingOverlay from '@/components/LoadingOverlay';
 
 export default function UmpireScorePage() {
-    const { data: session, status } = useSession();
-    const router = useRouter();
     const { matchId } = useParams();
-    const [match, setMatch] = useState<any>();
-    const [teamDetails, setTeamDetails] = useState<any>();
-    const [inningsData, setInningsData] = useState<any>();
+    const [match, setMatch] = useState<IMatchPopulated>();
+    const [teamDetails, setTeamDetails] = useState<ITeam>();
+    const [inningsData, setInningsData] = useState<IInnings>();
     const [runs, setRuns] = useState(0);
     const [wickets, setWickets] = useState(0);
     const [oversCompleted, setOversCompleted] = useState('0.0');
@@ -28,19 +27,19 @@ export default function UmpireScorePage() {
         }
         return o;
     };
-    useEffect(() => {
-        if (!matchId) return;
+    const [loading, setLoading] = useState(false);
 
-        const fetchMatchData = async () => {
-            try {
-                const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/match/${matchId}`);
-                if (!response.ok) {
-                    throw new Error('Failed to fetch match data');
-                }
-                const matchData = await response.json();
-                console.log("Fetched match data:", matchData.data);
+    const fetchMatchData = async () => {
+        setLoading(true);
+        try {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/match/${matchId}`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch match data');
+            }
+            const matchData = await response.json();
 
-                setMatch(matchData.data);
+            setMatch(matchData.data);
+            if (matchData?.data?.status === 'in-progress') {
                 const inningsData = matchData.data.innings[(matchData.data.currentInnings ?? 1) - 1];
                 setInningsData(inningsData);
                 const teamDetails = matchData.data.teams.find((t: any) => t._id === inningsData.battingTeamId);
@@ -48,20 +47,39 @@ export default function UmpireScorePage() {
                 setRuns(inningsData.score);
                 setWickets(inningsData.wickets);
                 setOversCompleted(formatOversCompleted(inningsData.oversCompleted));
-            } catch (error) {
-                console.error('Error fetching match:', error);
-                setMatch(undefined);
             }
-        };
-
+        } catch (error) {
+            console.error('Error fetching match:', error);
+            setMatch(undefined);
+        } finally {
+            setLoading(false);
+        }
+    };
+    useEffect(() => {
+        if (!matchId) return;
         fetchMatchData();
     }, [matchId]);
 
-    const goToHome = () => router.push('/');
-
+    const transitionInnings = async () => {
+        setLoading(true);
+        try {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/match/${matchId}/transition-innings`, {
+                method: 'PATCH',
+                headers: { "Content-Type": "application/json" },
+            });
+            if (!response.ok) {
+                throw new Error('Failed to transition innings');
+            }
+            await fetchMatchData();
+        } catch (e) {
+            console.error('Failed to transition innings:', e);
+        } finally {
+            setLoading(false);
+        }
+    }
 
     const trackScore = ({
-        runs = 0,
+        ballRuns = 0,
         isExtra = false,
         extraType = 'none',
         isWicket = false
@@ -74,16 +92,15 @@ export default function UmpireScorePage() {
             newBall = 0;
         }
         const body = {
-            inningsId: inningsData._id,
+            inningsId: inningsData?._id,
             overNumber: newOver,
             ballNumber: newBall,
-            runs,
+            runs: ballRuns,
             isWicket,
             isExtra,
             extraType
         }
-        console.log("body to send:", body);
-        setRuns((r: number) => r + runs);
+        setRuns((r: number) => r + ballRuns);
         if (!isExtra) {
             setOversCompleted((o) => {
                 const [over, ball] = o.split('.').map(Number);
@@ -105,51 +122,49 @@ export default function UmpireScorePage() {
                 body: JSON.stringify(body),
                 headers: { "Content-Type": "application/json" },
 
-            })
+            }).then((res) => {
+                if (
+                    match?.status === 'in-progress' &&
+                    match?.currentInnings === 2 &&
+                    (
+                        teamDetails?.numberOfPlayers === wickets ||
+                        match?.overs === +(formatOversCompleted(`${newOver}.${newBall}`).split('.')[0]) ||
+                        (match?.innings && match.innings[0]?.score !== undefined && (runs + ballRuns) > match.innings[0].score)
+                    )
+                ) {
+                    transitionInnings();
+                }
+            }).catch((e) => {
+                console.log("error in tracking score:", e);
+            });
         } catch (e) {
             console.log("error occured:", e);
         }
     }
 
 
-    if (status === 'unauthenticated') {
-        return (
-            <UnauthenticatedPage router={router} />
-        );
-    }
+    if (match?.status === 'completed' && match?.winnerMessage) {
 
-    if (!session) {
-        return null;
+        return (<Modal isOpen={true} title="Match completed!">
+            <div className='flex flex-col gap-6'>
+                <p>{match?.winnerMessage}</p>
+                <Link
+                    href="/"
+                    className={`${BlueBtnOutlined} max-w-fit flex items-center gap-2`}
+                >
+                    Back to matches
+                </Link>
+            </div>
+        </Modal>)
     }
-
-    if (session.user.role === Roles.spectator.toString()) {
-        return (<div className={PageContainer}>
-            <Alert
-                variant="error"
-                title="Oops!"
-                message={
-                    <div className={`flex flex-col gap-3`}>
-                        <p className='font-bold'>You dont have permission to view this page.</p>
-                        <button
-                            onClick={goToHome}
-                            className={`${BlueBtnOutlined} max-w-fit flex items-center gap-2`}
-                        >
-                            Back to home
-                        </button>
-                    </div>
-                }
-                onClose={goToHome}
-            />
-        </div>)
-    }
-
-    if (teamDetails?.numberOfPlayers === wickets) {
+    if (match?.currentInnings === 1 && (teamDetails?.numberOfPlayers === wickets || (match?.overs === +(oversCompleted.split('.')[0])))) {
 
         return (<Modal isOpen={true} title="Innings is Over">
+            {loading && <LoadingOverlay />}
             <div className='flex flex-col gap-6'>
                 <p className='text-lg'>All players are out / overs are completed.</p>
                 <button
-                    onClick={goToHome}
+                    onClick={transitionInnings}
                     className={`${BlueBtnOutlined} max-w-fit flex items-center gap-2`}
                 >
                     Start next innings
@@ -161,13 +176,20 @@ export default function UmpireScorePage() {
 
     return (
         <div className={PageContainer}>
+            {loading && <LoadingOverlay />}
             {matchId && match ?
                 (<UmpireControls
                     trackScore={trackScore}
-                    name={teamDetails.name}
+                    name={teamDetails?.name || ''}
                     runs={runs}
                     wickets={wickets}
-                    overs={oversCompleted} />)
+                    overs={oversCompleted}
+                    target={
+                        match?.currentInnings === 2 && match?.innings && match.innings[0]?.score !== undefined
+                            ? `Needs ${(match.innings[0].score - runs > 0 ? match.innings[0].score - runs : - 1) + 1} runs in ${((match.overs ?? 0) * 6) - ((+oversCompleted.split('.')[0]) * 6 + (+oversCompleted.split('.')[1] || 0))} balls`
+                            : `Remaining balls: ${((match.overs ?? 0) * 6) - ((+oversCompleted.split('.')[0]) * 6 + (+oversCompleted.split('.')[1] || 0))}`
+                    }
+                />)
                 :
                 null
             }
