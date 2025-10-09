@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 import dbConnect from "@/lib/mongodb";
 import User from "@/models/User";
 import { PageContainer } from "@/components/Styles";
@@ -17,22 +17,22 @@ export default async function AdminUsersPage() {
 
     return (
         <div className={PageContainer}>
-            <h2 className="text-2xl font-bold mb-4">All Users</h2>
+            <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">All Users</h2>
             <div className="overflow-x-auto">
-                <table className="min-w-full border border-gray-300">
+                <table className="min-w-full border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
                     <thead>
-                        <tr className="bg-gray-100">
-                            <th className="py-2 px-4 border-b">Name</th>
-                            <th className="py-2 px-4 border-b">Email</th>
-                            <th className="py-2 px-4 border-b">Role</th>
+                        <tr className="bg-gray-100 dark:bg-gray-800">
+                            <th className="py-2 px-4 border-b border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100">Name</th>
+                            <th className="py-2 px-4 border-b border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100">Email</th>
+                            <th className="py-2 px-4 border-b border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100">Role</th>
                         </tr>
                     </thead>
                     <tbody>
                         {users.map((user: any) => (
-                            <tr key={user._id} className="even:bg-gray-50">
-                                <td className="py-2 px-4 border-b">{user.name}</td>
-                                <td className="py-2 px-4 border-b">{user.email}</td>
-                                <td className="py-2 px-4 border-b">
+                            <tr key={user._id} className="even:bg-gray-50 dark:even:bg-gray-800">
+                                <td className="py-2 px-4 border-b border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100">{user.name}</td>
+                                <td className="py-2 px-4 border-b border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100">{user.email}</td>
+                                <td className="py-2 px-4 border-b border-gray-300 dark:border-gray-700">
                                     <UserRoleSelect userId={user._id.toString()} currentRole={user.role} />
                                 </td>
                             </tr>

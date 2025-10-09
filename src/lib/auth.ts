@@ -14,7 +14,7 @@ export const authOptions: NextAuthOptions = {
     async signIn({ user }) {
       await dbConnect();
       const existingUser = await User.findOne({ email: user.email });
-      
+
       if (!existingUser) {
         await User.create({
           email: user.email,
@@ -22,17 +22,17 @@ export const authOptions: NextAuthOptions = {
           role: 'spectator',
         });
       }
-      
+
       return true;
     },
-    async session({ session } :{session: any}) {
+    async session({ session }: { session: any }) {
       await dbConnect();
       const dbUser = await User.findOne({ email: session.user?.email });
-      
+
       if (dbUser) {
         session.user.role = dbUser.role;
       }
-      
+
       return session;
     },
   },
