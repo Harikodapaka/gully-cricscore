@@ -43,7 +43,7 @@ export function TabSwitcher({
             {tabs.map((tab: ReactNode, idx: number) => (
                 <button
                     key={idx}
-                    className={`flex-1 relative z-10 text-center font-medium transition-colors ${active === idx ? activeTextColor : inactiveTextColor
+                    className={`cursor-pointer flex-1 relative z-10 text-center font-medium transition-colors ${active === idx ? activeTextColor : inactiveTextColor
                         }`}
                     onClick={() => handleTabClick(idx)}
                 >

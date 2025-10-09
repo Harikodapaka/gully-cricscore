@@ -3,7 +3,7 @@
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Roles } from '@/types/roles';
-import { BlueBtnOutlined, PageContainer } from '@/components/Styles';
+import { OrangeBtnOutlined, PageContainer } from '@/components/Styles';
 import Alert from '@/components/Alert';
 import { UnauthenticatedPage } from './unauthenticatedPage';
 
@@ -32,7 +32,7 @@ export default function UmpireLayout({ children }: { children: React.ReactNode }
                             <p className="font-bold">You dont have permission to view this page.</p>
                             <button
                                 onClick={goToHome}
-                                className={`${BlueBtnOutlined} max-w-fit flex items-center gap-2`}
+                                className={`${OrangeBtnOutlined} max-w-fit flex items-center gap-2`}
                             >
                                 Back to home
                             </button>

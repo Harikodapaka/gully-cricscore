@@ -77,6 +77,11 @@ export default function MatchDetails() {
             if (res.ok) {
                 const data = await res.json();
                 setMatchData(data.data);
+                setSelectedInnings(data.data.currentInnings === 1 ? 0 : 1);
+            } else {
+                if (typeof window !== 'undefined' && typeof window.showToast === 'function') {
+                    window.showToast("Error fetching match", 'error');
+                }
             }
         }
         fetchMatch();
@@ -125,6 +130,7 @@ export default function MatchDetails() {
             <div className="flex justify-center mt-4">
                 <TabSwitcher
                     tabs={['1st Innings', '2nd Innings']}
+                    ativeTab={selectedInnings}
                     onChange={handleTabChange}
                 />
             </div>

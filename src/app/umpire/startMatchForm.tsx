@@ -36,6 +36,9 @@ export function StartMatchForm() {
             router.replace(`/umpire/${data._id}`);
         } catch (err: any) {
             setError(err.message);
+            if (typeof window !== 'undefined' && typeof window.showToast === 'function') {
+                window.showToast("Something went wrong.", "error");
+            }
         } finally {
             setLoading(false);
         }

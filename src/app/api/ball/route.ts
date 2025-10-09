@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
         } = body;
 
         // Validation
-        if (!inningsId || !ballNumber) {
+        if (!inningsId || isNaN(overNumber?.toString()) || isNaN(ballNumber.toString())) {
             return NextResponse.json(
                 { message: "inningsId, overNumber, and ballNumber are required." },
                 { status: 400 }

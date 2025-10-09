@@ -1,5 +1,3 @@
-'use client';
-
 import { CardBase, PageContainer } from '@/components/Styles';
 import { StartMatchForm } from './startMatchForm';
 
