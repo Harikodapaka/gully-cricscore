@@ -1,3 +1,4 @@
+import "./Team"; // Ensure Team schema is registered
 import mongoose, { Document, Model, Schema, Types } from "mongoose";
 import { IBall } from "./Ball";
 
