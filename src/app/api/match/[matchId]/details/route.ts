@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isValidObjectId } from "mongoose";
 import dbConnect from "@/lib/mongodb";
-import Match, { IMatch } from "@/models/Match";
-import Ball, { IBall } from "@/models/Ball";
-import Team, { ITeam } from "@/models/Team";
+import Team from "@/models/Team";
+import Match from "@/models/Match";
+import Ball from "@/models/Ball";
+import { IMatch } from "@/models/Match";
+import { IBall } from "@/models/Ball";
+import { ITeam } from "@/models/Team";
+
 import Innings, { IInnings } from "@/models/Innings";
 
 interface RouteParams {
