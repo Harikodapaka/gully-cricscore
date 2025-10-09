@@ -19,6 +19,7 @@ export default function UmpireScorePage() {
     const [runs, setRuns] = useState(0);
     const [wickets, setWickets] = useState(0);
     const [oversCompleted, setOversCompleted] = useState('0.0');
+    const [loading, setLoading] = useState(false);
 
     const formatOversCompleted = (o: string) => {
         const [over, ball] = o.split('.').map(Number);
@@ -27,7 +28,7 @@ export default function UmpireScorePage() {
         }
         return o;
     };
-    const [loading, setLoading] = useState(false);
+
 
     const fetchMatchData = async () => {
         setLoading(true);
@@ -55,6 +56,7 @@ export default function UmpireScorePage() {
             setLoading(false);
         }
     };
+
     useEffect(() => {
         if (!matchId) return;
         fetchMatchData();
@@ -173,7 +175,24 @@ export default function UmpireScorePage() {
         </Modal>)
     }
 
+    const getTargetText = () => {
+        if (match?.currentInnings !== 2 || !match?.innings || match.innings[0]?.score === undefined) {
+            const ballsLeft = ((match?.overs ?? 0) * 6) - ((+oversCompleted.split('.')[0]) * 6 + (+oversCompleted.split('.')[1] || 0));
+            return `Remaining balls: ${ballsLeft}`;
+        }
 
+        const target = match.innings[0].score + 1;
+        const runsNeeded = target - runs;
+        const ballsLeft = ((match.overs ?? 0) * 6) - ((+oversCompleted.split('.')[0]) * 6 + (+oversCompleted.split('.')[1] || 0));
+
+        if (runsNeeded === 0) {
+            return 'Match Tied!';
+        } else if (runsNeeded < 0) {
+            return 'Target Achieved!';
+        } else {
+            return `Needs ${runsNeeded} run${runsNeeded > 1 ? 's' : ''} in ${ballsLeft} ball${ballsLeft !== 1 ? 's' : ''}`;
+        }
+    }
     return (
         <div className={PageContainer}>
             {loading && <LoadingOverlay />}
@@ -184,11 +203,7 @@ export default function UmpireScorePage() {
                     runs={runs}
                     wickets={wickets}
                     overs={oversCompleted}
-                    target={
-                        match?.currentInnings === 2 && match?.innings && match.innings[0]?.score !== undefined
-                            ? `Needs ${(match.innings[0].score - runs > 0 ? match.innings[0].score - runs : - 1) + 1} runs in ${((match.overs ?? 0) * 6) - ((+oversCompleted.split('.')[0]) * 6 + (+oversCompleted.split('.')[1] || 0))} balls`
-                            : `Remaining balls: ${((match.overs ?? 0) * 6) - ((+oversCompleted.split('.')[0]) * 6 + (+oversCompleted.split('.')[1] || 0))}`
-                    }
+                    target={getTargetText()}
                 />)
                 :
                 null

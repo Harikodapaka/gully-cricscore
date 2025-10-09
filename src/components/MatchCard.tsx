@@ -21,7 +21,7 @@ export default function MatchCard({ match }: MatchCardProps) {
     }, {} as Record<string, string>);
 
     const teamA = {
-        name: match.innings?.[0]?.battingTeamId.name || 'Team A',
+        name: teamNamesMap[match.innings?.[0]?.battingTeamId] || 'Team A',
         runs: match.innings?.[0]?.score || 0,
         wickets: match.innings?.[0]?.wickets || 0,
         oversCompleted: match.innings?.[0]?.oversCompleted || 0,
@@ -29,7 +29,7 @@ export default function MatchCard({ match }: MatchCardProps) {
     };
 
     const teamB = {
-        name: match.innings?.[0]?.bowlingTeamId.name || 'Team B',
+        name: teamNamesMap[match.innings?.[0]?.bowlingTeamId] || 'Team B',
         runs: match.innings?.[1]?.score || 0,
         wickets: match.innings?.[1]?.wickets || 0,
         oversCompleted: match.innings?.[1]?.oversCompleted || 0,

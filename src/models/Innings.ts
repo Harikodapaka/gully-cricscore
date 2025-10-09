@@ -1,4 +1,5 @@
 import mongoose, { Document, Model, Schema, Types } from "mongoose";
+import { IBall } from "./Ball";
 
 export interface IInnings extends Document {
     inningsNumber: 1 | 2;
@@ -15,6 +16,8 @@ export interface IInningsPopulated extends Omit<IInnings, 'battingTeamId' | 'bow
     oversCompleted: string;
     battingTeamId: any;
     bowlingTeamId: any;
+    balls?: IBall[];
+
 }
 
 const InningsSchema = new Schema<IInnings>({

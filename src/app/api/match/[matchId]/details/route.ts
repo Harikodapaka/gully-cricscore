@@ -31,8 +31,8 @@ export async function GET(req: NextRequest, context: RouteParams) {
         await dbConnect();
 
         const matchDoc = await Match.findById(matchId)
-            .populate("teams")
-            .populate("innings")
+            .populate({ path: "teams", select: "_id name numberOfPlayers" })
+            .populate({ path: "innings" })
             .lean<IMatchLean>();
 
         if (!matchDoc) {
@@ -42,34 +42,38 @@ export async function GET(req: NextRequest, context: RouteParams) {
             );
         }
 
-        // Now TypeScript knows the exact structure
-        const inningsWithOvers = await Promise.all(
-            matchDoc.innings.map(async (innings) => {
-                if (innings.status !== "in-progress") {
-                    return innings;
-                }
+        // Collect all innings IDs to fetch balls in a single query
+        const inningsIds = matchDoc.innings.map((innings) => innings._id);
+        const balls = await Ball.find({ inningsId: { $in: inningsIds } })
+            .sort({ inningsId: 1, overNumber: -1, ballNumber: -1 })
+            .lean<IBall[]>();
 
-                const lastBall = await Ball.findOne({ inningsId: innings._id })
-                    .sort({ overNumber: -1, ballNumber: -1 })
-                    .select("overNumber ballNumber")
-                    .lean() as IBall | null;
+        // Group balls by inningsId for quick lookup
+        const ballsByInnings: Record<string, IBall[]> = {};
+        for (const ball of balls) {
+            const key = String(ball.inningsId);
+            if (!ballsByInnings[key]) ballsByInnings[key] = [];
+            ballsByInnings[key].push(ball as IBall);
+        }
 
-                const oversCompleted = lastBall
-                    ? `${lastBall.overNumber}.${lastBall.ballNumber}`
-                    : "0.0";
-
-                return {
-                    ...innings,
-                    oversCompleted
-                };
-            })
-        );
+        const inningsWithOversAndBalls = matchDoc.innings.map((innings) => {
+            const ballsForInnings = ballsByInnings[String(innings._id)] || [];
+            const lastBall = ballsForInnings?.[0]; // balls are sorted desc, so first is latest
+            const oversCompleted = lastBall
+                ? `${lastBall.overNumber}.${lastBall.ballNumber}`
+                : "0.0";
+            return {
+                ...innings,
+                oversCompleted,
+                balls: ballsForInnings
+            };
+        });
 
         return NextResponse.json({
             success: true,
             data: {
                 ...matchDoc,
-                innings: inningsWithOvers
+                innings: inningsWithOversAndBalls
             }
         });
     } catch (error) {

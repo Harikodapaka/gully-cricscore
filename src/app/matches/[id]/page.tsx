@@ -3,7 +3,6 @@
 import { TabSwitcher } from "@/components/TabSwitcher";
 import { TeamScore, TeamScoreProps } from "@/components/TeamScore";
 import { getRunMessage, getRunsIcon } from "./utils";
-import { OVERS_TO_DISPLAY } from "./constants";
 import { BlueBtn, CardBase, PageContainer } from "@/components/Styles";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
@@ -39,18 +38,6 @@ const BallDisplay = ({
     </div>
 );
 
-const OverDisplay = ({ overNumber }: { overNumber: number }) => (
-    <div key={`over-${overNumber}`}>
-        <Divider over={overNumber} />
-        {[0, 1, 4, 3, 'wide', 'no-ball', 6].map((run, i) => (<BallDisplay
-            key={`ball-${overNumber}-${i}`}
-            ballNumber={i}
-            runs={run}
-            overNumber={overNumber}
-        />))}
-    </div>
-);
-
 const ScoreCard = ({
     teamA,
     teamB
@@ -79,9 +66,11 @@ const ScoreCard = ({
 
 export default function MatchDetails() {
     const [matchData, setMatchData] = useState<IMatchPopulated | null>(null);
+    const [selectedInnings, setSelectedInnings] = useState<number>(0); // 0 for 1st Innings, 1 for 2nd Innings
     const params = useParams();
 
     useEffect(() => {
+        if (!params?.id) return;
         async function fetchMatch() {
             if (!params?.id) return;
             const res = await fetch(`/api/match/${params.id}/details`);
@@ -112,7 +101,7 @@ export default function MatchDetails() {
         name: teamsById[firstInnings?.battingTeamId]?.name || 'Team A',
         runs: firstInnings?.score || 0,
         wickets: firstInnings?.wickets || 0,
-        overs: (firstInnings?.oversCompleted ?? 0).toString(),
+        overs: (firstInnings?.oversCompleted ?? '').toString(),
         batting: matchData.status === 'in-progress' && matchData.currentInnings === 1
     };
 
@@ -121,12 +110,12 @@ export default function MatchDetails() {
         name: teamsById[secondInnings?.battingTeamId]?.name || 'Team B',
         runs: secondInnings?.score || 0,
         wickets: secondInnings?.wickets || 0,
-        overs: (secondInnings?.oversCompleted ?? 0).toString(),
+        overs: (secondInnings?.oversCompleted ?? '').toString(),
         batting: matchData.status === 'in-progress' && matchData.currentInnings === 2
     };
 
     const handleTabChange = (index: number, label: string) => {
-        console.log('Tab changed:', index, label);
+        setSelectedInnings(index);
     };
 
     return (
@@ -141,9 +130,50 @@ export default function MatchDetails() {
             </div>
 
             <div className="rounded-md border border-gray-300 shadow-sm my-4 p-2">
-                {Array.from({ length: OVERS_TO_DISPLAY }, (_, i) => (
-                    <OverDisplay key={`over-${i + 1}`} overNumber={i + 1} />
-                ))}
+                {/* Show balls for the selected innings */}
+                {(matchData.innings ?? []).map((innings, idx) => {
+                    // If 2nd innings tab is selected but no 2nd innings data, show "Yet to bat" and don't render the balls
+                    if (selectedInnings === 1 && matchData.currentInnings === 1) {
+                        return (
+                            <div
+                                key={`innings-${idx}`}
+                                className="text-center text-gray-500 py-8 font-semibold"
+                            >
+                                Yet to bat
+                            </div>
+                        );
+                    }
+
+                    return (
+                        <div
+                            key={`innings-${idx}`}
+                            style={{ display: idx === selectedInnings ? 'block' : 'none' }}
+                        >
+                            {/* Only render balls if innings data exists */}
+                            {innings && Array.from({ length: matchData.overs }, (_, overIdx) => {
+                                const ballsForOver = (innings.balls ?? []).filter(
+                                    (ball) => ball.overNumber === overIdx
+                                );
+                                if (ballsForOver.length === 0) return null;
+                                return (
+                                    <div key={`over-${overIdx + 1}`}>
+                                        <Divider over={overIdx + 1} />
+                                        {ballsForOver
+                                            .sort((a, b) => a.ballNumber - b.ballNumber)
+                                            .map((ball, i) => (
+                                                <BallDisplay
+                                                    key={`ball-${overIdx + 1}-${i}`}
+                                                    ballNumber={ball.ballNumber - 1}
+                                                    runs={ball.isExtra ? ball.extraType : ball.isWicket ? 'wicket' : ball.runs}
+                                                    overNumber={ball.overNumber + 1}
+                                                />
+                                            ))}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    );
+                })}
             </div>
         </div>
     );

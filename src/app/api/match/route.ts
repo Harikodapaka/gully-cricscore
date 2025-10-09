@@ -20,57 +20,56 @@ export async function GET() {
     try {
         await dbConnect();
 
-        // Fetch all matches with populated teams + innings
+        // Fetch all matches with populated teams + innings (lean for perf)
         const matches = await Match.find()
             .populate({
                 path: 'innings',
-                populate: [
-                    { path: 'battingTeamId', select: 'name' },
-                    { path: 'bowlingTeamId', select: 'name' },
-                ],
+                options: { lean: true }
             })
-            .populate('teams')
-            .sort({
-                createdAt: -1        // Then by creation date (newest first)
-            });
+            .populate({ path: 'teams', options: { lean: true } })
+            .sort({ createdAt: -1 })
+            .lean();
 
-        // For each match, attach oversCompleted from latest Ball
-        const matchesWithOvers = await Promise.all(
-            matches.map(async (match) => {
-                const inningsWithOvers = await Promise.all(
-                    match.innings.map(async (inn: any) => {
-                        const lastBall = await Ball.findOne({ inningsId: inn._id })
-                            .sort({ timestamp: -1 }) // latest ball first
-                            .lean();
+        // Get all innings IDs
+        const allInningsIds = matches.flatMap(m => m.innings.map((inn: any) => inn._id));
 
-                        let oversCompleted = !!lastBall
-                            ? `${(lastBall as any).overNumber}.${(lastBall as any).ballNumber}`
-                            : '0.0';
-                        // If its last ball make it round up   
-                        if ((lastBall as any)?.ballNumber === 6) {
-                            oversCompleted = Math.ceil(+oversCompleted).toString()
-                        }
-                        return {
-                            ...inn.toObject(),
-                            oversCompleted,
-                        };
-                    })
-                );
+        // Aggregate to get latest ball per innings
+        const latestBalls = await Ball.aggregate([
+            { $match: { inningsId: { $in: allInningsIds } } },
+            { $sort: { timestamp: -1 } },
+            {
+                $group: {
+                    _id: "$inningsId",
+                    overNumber: { $first: "$overNumber" },
+                    ballNumber: { $first: "$ballNumber" }
+                }
+            }
+        ]);
 
-                return {
-                    ...match.toObject(),
-                    innings: inningsWithOvers,
-                };
-            })
+        const latestBallsMap = new Map(
+            latestBalls.map(b => [b._id.toString(), b])
         );
 
-        return NextResponse.json(matchesWithOvers);
+        // Attach oversCompleted to each innings
+        for (const match of matches) {
+            match.innings = match.innings.map((inn: any) => {
+                const lastBall = latestBallsMap.get(inn._id.toString());
+                let oversCompleted = lastBall
+                    ? `${lastBall.overNumber}.${lastBall.ballNumber}`
+                    : '0.0';
+                if (lastBall?.ballNumber === 6) {
+                    oversCompleted = Math.ceil(+oversCompleted).toString();
+                }
+                return { ...inn, oversCompleted };
+            });
+        }
+
+        return NextResponse.json(matches);
     } catch (error) {
         console.error('Error fetching matches:', error);
         return NextResponse.json({ error: 'Failed to fetch matches' }, { status: 500 });
     }
 }
-
 
 export async function POST(req: NextRequest) {
     try {

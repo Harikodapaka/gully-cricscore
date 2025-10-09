@@ -20,8 +20,7 @@ export const RUN_MESSAGES = {
 
 export const BALL_MESSAGES = {
     'wide': 'W',
-    'no-ball': 'NB',
+    'noball': 'NB',
     'wicket': 'WK'
 } as const;
 
-export const OVERS_TO_DISPLAY = 2;
