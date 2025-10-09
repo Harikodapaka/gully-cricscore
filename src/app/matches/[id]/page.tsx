@@ -1,18 +1,15 @@
 'use client'
 
 import { TabSwitcher } from "@/components/TabSwitcher";
-import { TeamScore } from "@/components/TeamScore";
+import { TeamScore, TeamScoreProps } from "@/components/TeamScore";
 import { getRunMessage, getRunsIcon } from "./utils";
 import { OVERS_TO_DISPLAY } from "./constants";
 import { BlueBtn, CardBase, PageContainer } from "@/components/Styles";
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import { IMatchPopulated } from "@/models/Match";
+import LoadingOverlay from "@/components/LoadingOverlay";
 
-
-interface TeamData {
-    name: string;
-    runs: number;
-    wickets: number;
-    overs: number;
-}
 
 const Divider = ({ over }: { over: number }) => (
     <div className="flex items-center">
@@ -58,8 +55,8 @@ const ScoreCard = ({
     teamA,
     teamB
 }: {
-    teamA: TeamData;
-    teamB: TeamData;
+    teamA: TeamScoreProps;
+    teamB: TeamScoreProps;
 }) => (
     <div className={`${CardBase} h-24 flex items-center justify-around`}>
         <TeamScore
@@ -67,6 +64,7 @@ const ScoreCard = ({
             runs={teamA.runs}
             wickets={teamA.wickets}
             overs={teamA.overs.toString()}
+            batting={teamA.batting}
         />
         <p className="font-bold">VS</p>
         <TeamScore
@@ -74,23 +72,57 @@ const ScoreCard = ({
             runs={teamB.runs}
             wickets={teamB.wickets}
             overs={teamB.overs.toString()}
+            batting={teamB.batting}
         />
     </div>
 );
 
 export default function MatchDetails() {
-    const teamA: TeamData = {
-        name: "Team A *",
-        runs: 123,
-        wickets: 4,
-        overs: 5.6
+    const [matchData, setMatchData] = useState<IMatchPopulated | null>(null);
+    const params = useParams();
+
+    useEffect(() => {
+        async function fetchMatch() {
+            if (!params?.id) return;
+            const res = await fetch(`/api/match/${params.id}/details`);
+            if (res.ok) {
+                const data = await res.json();
+                setMatchData(data.data);
+            }
+        }
+        fetchMatch();
+    }, [params?.id]);
+
+    if (!matchData) {
+        return <LoadingOverlay />;
+    }
+
+
+    // Find teams by their _id for easy lookup
+    const teamsById = matchData.teams.reduce((acc, team) => {
+        acc[String(team._id)] = { _id: String(team._id), name: String(team.name) };
+        return acc;
+    }, {} as Record<string, { _id: string; name: string }>);
+
+    // Get both innings
+    const [firstInnings, secondInnings] = matchData.innings;
+
+    // Team A: 1st batting team
+    const teamA = {
+        name: teamsById[firstInnings?.battingTeamId]?.name || 'Team A',
+        runs: firstInnings?.score || 0,
+        wickets: firstInnings?.wickets || 0,
+        overs: (firstInnings?.oversCompleted ?? 0).toString(),
+        batting: matchData.status === 'in-progress' && matchData.currentInnings === 1
     };
 
-    const teamB: TeamData = {
-        name: "Team B",
-        runs: 0,
-        wickets: 0,
-        overs: 0
+    // Team B: 2nd batting team
+    const teamB = {
+        name: teamsById[secondInnings?.battingTeamId]?.name || 'Team B',
+        runs: secondInnings?.score || 0,
+        wickets: secondInnings?.wickets || 0,
+        overs: (secondInnings?.oversCompleted ?? 0).toString(),
+        batting: matchData.status === 'in-progress' && matchData.currentInnings === 2
     };
 
     const handleTabChange = (index: number, label: string) => {

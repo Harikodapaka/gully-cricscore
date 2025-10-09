@@ -11,7 +11,7 @@ export interface IInnings extends Document {
     completedAt?: Date;
 }
 
-export interface IPopulatedInnings extends Omit<IInnings, 'battingTeamId' | 'bowlingTeamId'> {
+export interface IInningsPopulated extends Omit<IInnings, 'battingTeamId' | 'bowlingTeamId'> {
     oversCompleted: string;
     battingTeamId: any;
     bowlingTeamId: any;

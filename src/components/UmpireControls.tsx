@@ -1,13 +1,13 @@
 import React from 'react';
 
-export interface TeamScoreProps {
+export interface TeamScoreBoardProps {
     name: string;
     runs: number;
     wickets: number;
     overs: string;
     target?: string;
 }
-const TeamScore = ({ name, runs, wickets, overs, target }: TeamScoreProps) => (
+const TeamScoreBoard = ({ name, runs, wickets, overs, target }: TeamScoreBoardProps) => (
     <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-4 mb-4 shadow-lg">
         <div className="flex items-center justify-between text-white">
             <div>
@@ -33,12 +33,12 @@ export interface TrackScoreProps {
     extraType?: string;
     isWicket?: boolean;
 }
-export const UmpireControls = ({ name, runs, wickets, overs, target, trackScore }: TeamScoreProps & { trackScore: (score: TrackScoreProps) => void }) => {
+export const UmpireControls = ({ name, runs, wickets, overs, target, trackScore }: TeamScoreBoardProps & { trackScore: (score: TrackScoreProps) => void }) => {
     const runButtons = [0, 1, 2, 3, 4, 6];
 
     return (
         <div className="">
-            <TeamScore name={name} runs={runs} wickets={wickets} overs={overs} target={target} />
+            <TeamScoreBoard name={name} runs={runs} wickets={wickets} overs={overs} target={target} />
 
             <div className="bg-white rounded-2xl shadow-xl p-4 space-y-8">
                 {/* Runs Section */}

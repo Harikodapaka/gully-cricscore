@@ -1,6 +1,6 @@
 import mongoose, { Document, Model, Schema, Types } from "mongoose";
 import { ITeam } from "./Team";
-import { IPopulatedInnings } from "./Innings";
+import { IInningsPopulated } from "./Innings";
 
 export interface IMatch extends Document {
     location: string;
@@ -17,7 +17,7 @@ export interface IMatch extends Document {
 
 export interface IMatchPopulated extends Omit<IMatch, 'teams' | 'innings' | 'wonBy'> {
     teams: ITeam[];
-    innings: IPopulatedInnings[];
+    innings: IInningsPopulated[];
     wonBy?: string;
 }
 

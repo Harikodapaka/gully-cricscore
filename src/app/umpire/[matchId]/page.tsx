@@ -32,7 +32,7 @@ export default function UmpireScorePage() {
     const fetchMatchData = async () => {
         setLoading(true);
         try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/match/${matchId}`);
+            const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/match/${matchId}/details`);
             if (!response.ok) {
                 throw new Error('Failed to fetch match data');
             }
