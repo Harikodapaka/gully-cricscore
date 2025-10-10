@@ -14,7 +14,7 @@ export const RUN_MESSAGES = {
     11: 'Eleven Runs.',
     12: 'Twelve Runs.',
     'wide': 'Wide Ball 🤷‍♂️. Free runs!',
-    'no-ball': 'No-ball 💁‍♂️. Free runs + Free hit!!',
+    'noball': 'No-ball 💁‍♂️. Free runs + Free hit!!',
     'wicket': 'Wicket is gone! 🤦‍♂️'
 } as const;
 

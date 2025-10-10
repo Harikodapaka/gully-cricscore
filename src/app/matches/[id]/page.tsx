@@ -21,19 +21,23 @@ const Divider = ({ over }: { over: number }) => (
 const BallDisplay = ({
     ballNumber,
     runs,
-    overNumber
+    overNumber,
+    isWicket,
+    extraType
 }: {
     ballNumber: number;
-    runs: number | string;
+    runs: number;
     overNumber: number;
+    isWicket?: boolean;
+    extraType?: string;
 }) => (
     <div className="flex gap-3 my-4 items-center">
-        <p className="h-8 w-8 bg-orange-400 flex items-center justify-center shrink-0 rounded-full border border-orange-100 text-white font-bold">
-            {getRunsIcon(runs)}
+        <p className={`h-10 w-10 bg-orange-400 flex items-center justify-center shrink-0 rounded-full border border-orange-100 text-white font-bold ${extraType === 'noball' && runs > 1 ? 'text-xs' : ''}`}>
+            {getRunsIcon(runs, isWicket, extraType)}
         </p>
-        <p>{getRunMessage(runs)}</p>
+        <p>{getRunMessage(extraType && extraType !== 'none' ? extraType : runs)}</p>
         <p className="h-8 w-14 bg-blue-400 flex items-center justify-center shrink-0 rounded border border-blue-200 text-white ml-auto">
-            ({overNumber - 1}.{ballNumber + 1})
+            ({overNumber}.{ballNumber})
         </p>
     </div>
 );
@@ -149,6 +153,16 @@ export default function MatchDetails() {
                             </div>
                         );
                     }
+                    if (innings?.balls?.length === 0) {
+                        return (
+                            <div
+                                key={`innings-${idx}`}
+                                className="text-center text-gray-500 py-8 font-semibold"
+                            >
+                                No balls bowled yet
+                            </div>
+                        );
+                    }
 
                     return (
                         <div
@@ -169,9 +183,11 @@ export default function MatchDetails() {
                                             .map((ball, i) => (
                                                 <BallDisplay
                                                     key={`ball-${overIdx + 1}-${i}`}
-                                                    ballNumber={ball.ballNumber - 1}
-                                                    runs={ball.isExtra ? ball.extraType : ball.isWicket ? 'wicket' : ball.runs}
-                                                    overNumber={ball.overNumber + 1}
+                                                    ballNumber={ball.ballNumber}
+                                                    runs={ball.runs}
+                                                    isWicket={ball.isWicket}
+                                                    extraType={ball.extraType}
+                                                    overNumber={ball.overNumber}
                                                 />
                                             ))}
                                     </div>

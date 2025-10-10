@@ -58,7 +58,7 @@ export const UmpireControls = ({ name, runs, wickets, overs, target, trackScore,
                                 onClick={() => {
                                     trackScore({
                                         ballRuns: run + 1,
-                                        isExtra: true,
+                                        isExtra: false,
                                         extraType: 'noball',
                                     });
                                     setNoBallPopup(false);
