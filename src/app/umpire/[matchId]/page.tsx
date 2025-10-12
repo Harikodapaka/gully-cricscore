@@ -129,13 +129,20 @@ export default function UmpireScorePage() {
             if (typeof window !== 'undefined' && typeof window.showToast === 'function') {
                 window.showToast("Saved 👍", 'success');
             }
+
+
+            // Calculate updated runs and wickets before checking transition logic
+            const updatedRuns = runs + ballRuns;
+            const updatedWickets = isWicket ? wickets + 1 : wickets;
+            console.log("checking for innings transition:", { newOver, newBall, updatedRuns, updatedWickets, match, teamDetails });
+
             if (
                 match?.status === 'in-progress' &&
                 match?.currentInnings === 2 &&
                 (
-                    teamDetails?.numberOfPlayers === wickets ||
+                    teamDetails?.numberOfPlayers === updatedWickets ||
                     match?.overs === +(formatOversCompleted(`${newOver}.${newBall}`).split('.')[0]) ||
-                    (match?.innings && match.innings[0]?.score !== undefined && (runs + ballRuns) > match.innings[0].score)
+                    (match?.innings && match.innings[0]?.score !== undefined && updatedRuns > match.innings[0].score)
                 )
             ) {
                 await transitionInnings();
