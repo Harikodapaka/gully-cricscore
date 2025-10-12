@@ -1,17 +1,17 @@
 'use client';
 
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { BlueBtn, PageContainer } from '@/components/Styles';
 import Modal from '@/components/Modal';
 import { TrackScoreProps, UmpireControls } from '@/components/UmpireControls';
-import { useEffect, useState } from 'react';
 import { IMatchPopulated } from '@/models/Match';
-import Link from 'next/link';
 import { ITeam } from '@/models/Team';
 import { IInnings } from '@/models/Innings';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import { IBall } from '@/models/Ball';
-import { set } from 'mongoose';
+import { formatOversCompleted } from '@/app/utils/formatOversCompleted';
 
 export default function UmpireScorePage() {
     const { matchId } = useParams();
@@ -23,14 +23,7 @@ export default function UmpireScorePage() {
     const [oversCompleted, setOversCompleted] = useState('0.0');
     const [loading, setLoading] = useState(false);
     const [lastballSaved, setLastballSaved] = useState<IBall | null>(null);
-    const formatOversCompleted = (o: string) => {
-        const [over, ball] = o.split('.').map(Number);
-        if (ball === 6) {
-            return `${over + 1}.0`
-        }
-        return o;
-    };
-
+    const router = useRouter();
 
     const fetchMatchData = async () => {
         setLoading(true);
@@ -57,6 +50,7 @@ export default function UmpireScorePage() {
             setMatch(undefined);
             if (typeof window !== 'undefined' && typeof window.showToast === 'function') {
                 window.showToast("Error fetching match", 'error');
+                router.push('/'); // Redirect to home on error
             }
         } finally {
             setLoading(false);
@@ -105,7 +99,7 @@ export default function UmpireScorePage() {
         const body = {
             inningsId: inningsData?._id,
             overNumber: newOver,
-            ballNumber: newBall,
+            ballNumber: extraType === 'noball' ? newBall + 1 : newBall, // No-ball adds an extra ball
             runs: ballRuns,
             isWicket,
             isExtra,
@@ -113,20 +107,12 @@ export default function UmpireScorePage() {
         };
         setRuns((r: number) => r + ballRuns);
         if (!isExtra) {
-            setOversCompleted((o) => {
-                const [over, ball] = o.split('.').map(Number);
-                let newOver = over;
-                let newBall = ball + 1;
-                if (newBall >= 6) {
-                    newOver = newOver + 1;
-                    newBall = 0;
-                }
-                return `${newOver}.${newBall}`;
-            });
+            setOversCompleted(`${newOver}.${newBall}`);
         }
         if (isWicket) {
             setWickets(w => w + 1);
         }
+
         try {
             const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/ball`, {
                 method: 'POST',
@@ -137,8 +123,9 @@ export default function UmpireScorePage() {
                 throw new Error('Failed to track score');
             }
             const data = await res.json();
-            const savedBall: IBall = data.data;
+            const savedBall: IBall = data.ball;
             setLastballSaved(savedBall);
+
             if (typeof window !== 'undefined' && typeof window.showToast === 'function') {
                 window.showToast("Saved 👍", 'success');
             }
@@ -169,7 +156,7 @@ export default function UmpireScorePage() {
                 <p className='text-lg'>{match?.winnerMessage} 🏆</p>
                 <Link
                     href="/"
-                    className={`${BlueBtn} animate-pulse`}
+                    className={`${BlueBtn} text-center`}
                 >
                     Back to matches
                 </Link>
@@ -182,20 +169,18 @@ export default function UmpireScorePage() {
             {loading && <LoadingOverlay />}
             <div className='flex flex-col gap-6 items-center'>
                 <p className='text-md font-italic'>All players are out / Overs are completed.</p>
-                <p className='text-lg'>Team {teamDetails?.name} scored <b>
-                    {match?.innings[0]?.score}
+                <p className='text-lg'>Team <b>{teamDetails?.name}</b> scored: <b>
+                    {runs}
                 </b> runs</p>
                 <button
                     onClick={transitionInnings}
-                    className={`${BlueBtn} animate-pulse`}
+                    className={`${BlueBtn} text-center`}
                 >
                     Start next innings
                 </button>
             </div>
         </Modal>)
     }
-    console.log("lastballSaved:", lastballSaved);
-
 
     const getTargetText = () => {
         if (match?.currentInnings !== 2 || !match?.innings || match.innings[0]?.score === undefined) {

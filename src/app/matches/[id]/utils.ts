@@ -13,7 +13,7 @@ export const getRunsIcon = (runs: number, isWicket?: boolean, extraType?: string
             ballMessage = BALL_MESSAGES[extraType as keyof typeof BALL_MESSAGES];
             break;
         case 'wicket':
-            ballMessage = BALL_MESSAGES[extraType as keyof typeof BALL_MESSAGES];
+            ballMessage = `${BALL_MESSAGES[extraType as keyof typeof BALL_MESSAGES]}${runs > 0 ? `+${runs}` : ''}`;
             break;
     }
     return ballMessage || runs.toString();

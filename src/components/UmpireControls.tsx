@@ -1,6 +1,7 @@
 import React from 'react';
 import Modal from './Modal';
 import { DeleteBallBtn, RunsBtn, UmpireExtraBtn, WicketBtn } from './Styles';
+import { formatOversCompleted } from '@/app/utils/formatOversCompleted';
 
 export interface TeamScoreBoardProps {
     name: string;
@@ -20,7 +21,7 @@ const TeamScoreBoard = ({ name, runs, wickets, overs, target }: TeamScoreBoardPr
                 <div className="text-5xl font-bold">
                     {runs}/{wickets}
                 </div>
-                <p className="text-blue-100 text-lg mt-1 dark:text-slate-700">({overs}) overs</p>
+                <p className="text-blue-100 text-lg mt-1 dark:text-slate-700">({formatOversCompleted(overs)}) overs</p>
             </div>
         </div>
         {target && <div className="text-right flex justify-center">
@@ -58,7 +59,7 @@ export const UmpireControls = ({ name, runs, wickets, overs, target, trackScore,
                                 onClick={() => {
                                     trackScore({
                                         ballRuns: run + 1,
-                                        isExtra: false,
+                                        isExtra: true,
                                         extraType: 'noball',
                                     });
                                     setNoBallPopup(false);

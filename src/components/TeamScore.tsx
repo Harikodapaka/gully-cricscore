@@ -1,3 +1,5 @@
+import { formatOversCompleted } from "@/app/utils/formatOversCompleted";
+
 export interface TeamScoreProps {
     name: string;
     runs: number;
@@ -18,7 +20,7 @@ export const TeamScore = ({
     <div className={hasBorder ? "border-t border-gray-300 mt-2 pt-2" : ""}>
         <p className="text-xs">{batting && <span>🏏</span>} {name}</p>
         <p className="text-lg font-semibold">
-            {runs} - {wickets} {overs && `(${overs})`}
+            {runs} - {wickets} {overs && `(${formatOversCompleted(overs)})`}
         </p>
     </div>
 );

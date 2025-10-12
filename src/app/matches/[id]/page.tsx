@@ -3,7 +3,7 @@
 import { TabSwitcher } from "@/components/TabSwitcher";
 import { TeamScore, TeamScoreProps } from "@/components/TeamScore";
 import { getRunMessage, getRunsIcon } from "./utils";
-import { BlueBtn, CardBase, PageContainer } from "@/components/Styles";
+import { CardBase, PageContainer } from "@/components/Styles";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { IMatchPopulated } from "@/models/Match";
@@ -30,17 +30,20 @@ const BallDisplay = ({
     overNumber: number;
     isWicket?: boolean;
     extraType?: string;
-}) => (
-    <div className="flex gap-3 my-4 items-center">
-        <p className={`h-10 w-10 bg-orange-400 flex items-center justify-center shrink-0 rounded-full border border-orange-100 text-white font-bold ${extraType === 'noball' && runs > 1 ? 'text-xs' : ''}`}>
-            {getRunsIcon(runs, isWicket, extraType)}
-        </p>
-        <p>{getRunMessage(extraType && extraType !== 'none' ? extraType : runs)}</p>
-        <p className="h-8 w-14 bg-blue-400 flex items-center justify-center shrink-0 rounded border border-blue-200 text-white ml-auto">
-            ({overNumber}.{ballNumber})
-        </p>
-    </div>
-);
+}) => {
+    const type = isWicket ? 'wicket' : extraType;
+    return (
+        <div className="flex gap-3 my-4 items-center">
+            <p className={`h-10 w-10 bg-orange-400 flex items-center justify-center shrink-0 rounded-full border border-orange-100 text-white font-bold ${(extraType === 'noball' && runs > 1) || (isWicket && runs > 0) ? 'text-xs' : ''}`}>
+                {getRunsIcon(runs, isWicket, type)}
+            </p>
+            <p>{getRunMessage(type && type !== 'none' ? type : runs)}</p>
+            <p className="h-8 w-14 bg-blue-400 flex items-center justify-center shrink-0 rounded border border-blue-200 text-white ml-auto">
+                ({overNumber}.{ballNumber})
+            </p>
+        </div>
+    )
+};
 
 const ScoreCard = ({
     teamA,
@@ -81,7 +84,9 @@ export default function MatchDetails() {
             if (res.ok) {
                 const data = await res.json();
                 setMatchData(data.data);
-                setSelectedInnings(data.data.currentInnings === 1 ? 0 : 1);
+                if (data.data.currentInnings === 2 && data.data.status === 'in-progress') {
+                    setSelectedInnings(1); // Switch to 2nd innings tab if match is in progress and 2nd innings has started
+                }
             } else {
                 if (typeof window !== 'undefined' && typeof window.showToast === 'function') {
                     window.showToast("Error fetching match", 'error');
@@ -170,29 +175,30 @@ export default function MatchDetails() {
                             style={{ display: idx === selectedInnings ? 'block' : 'none' }}
                         >
                             {/* Only render balls if innings data exists */}
-                            {innings && Array.from({ length: matchData.overs }, (_, overIdx) => {
-                                const ballsForOver = (innings.balls ?? []).filter(
-                                    (ball) => ball.overNumber === overIdx
-                                );
-                                if (ballsForOver.length === 0) return null;
-                                return (
-                                    <div key={`over-${overIdx + 1}`}>
-                                        <Divider over={overIdx + 1} />
-                                        {ballsForOver
-                                            .sort((a, b) => a.ballNumber - b.ballNumber)
-                                            .map((ball, i) => (
-                                                <BallDisplay
-                                                    key={`ball-${overIdx + 1}-${i}`}
-                                                    ballNumber={ball.ballNumber}
-                                                    runs={ball.runs}
-                                                    isWicket={ball.isWicket}
-                                                    extraType={ball.extraType}
-                                                    overNumber={ball.overNumber}
-                                                />
-                                            ))}
-                                    </div>
-                                );
-                            })}
+                            {innings && Array.from({ length: matchData.overs }, (_, overIdx) => overIdx)
+                                .reverse()
+                                .map((overIdx) => {
+                                    const ballsForOver = (innings.balls ?? []).filter(
+                                        (ball) => ball.overNumber === overIdx
+                                    );
+                                    if (ballsForOver.length === 0) return null;
+                                    return (
+                                        <div key={`over-${overIdx + 1}`}>
+                                            <Divider over={overIdx + 1} />
+                                            {ballsForOver
+                                                .map((ball, i) => (
+                                                    <BallDisplay
+                                                        key={`ball-${overIdx + 1}-${i}`}
+                                                        ballNumber={ball.ballNumber}
+                                                        runs={ball.runs}
+                                                        isWicket={ball.isWicket}
+                                                        extraType={ball.extraType}
+                                                        overNumber={ball.overNumber}
+                                                    />
+                                                ))}
+                                        </div>
+                                    );
+                                })}
                         </div>
                     );
                 })}

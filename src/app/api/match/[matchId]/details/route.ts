@@ -49,7 +49,7 @@ export async function GET(req: NextRequest, context: RouteParams) {
         // Collect all innings IDs to fetch balls in a single query
         const inningsIds = matchDoc.innings.map((innings) => innings._id);
         const balls = await Ball.find({ inningsId: { $in: inningsIds } })
-            .sort({ inningsId: 1, overNumber: -1, ballNumber: -1 })
+            .sort({ inningsId: 1, timestamp: -1 })
             .lean<IBall[]>();
 
         // Group balls by inningsId for quick lookup
