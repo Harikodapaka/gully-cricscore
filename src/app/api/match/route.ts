@@ -6,6 +6,7 @@ import Team from "@/models/Team";
 import Innings from "@/models/Innings";
 import { IInnings } from "@/models/Innings";
 import { Types } from "mongoose";
+import { calculateOversCompleted } from "@/app/utils/calculateOversCompleted";
 
 interface MatchRequestBody {
     location: string;
@@ -55,7 +56,7 @@ export async function GET() {
             match.innings = match.innings.map((inn: any) => {
                 const lastBall = latestBallsMap.get(inn._id.toString());
                 let oversCompleted = lastBall
-                    ? `${lastBall.overNumber}.${lastBall.ballNumber}`
+                    ? calculateOversCompleted(lastBall)
                     : '0.0';
                 if (lastBall?.ballNumber === 6) {
                     oversCompleted = Math.ceil(+oversCompleted).toString();

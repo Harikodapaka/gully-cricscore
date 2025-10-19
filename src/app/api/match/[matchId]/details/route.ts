@@ -9,6 +9,7 @@ import { IBall } from "@/models/Ball";
 import { ITeam } from "@/models/Team";
 
 import Innings, { IInnings } from "@/models/Innings";
+import { calculateOversCompleted } from "@/app/utils/calculateOversCompleted";
 
 interface RouteParams {
     params: Promise<{ matchId: string }>;
@@ -64,7 +65,7 @@ export async function GET(req: NextRequest, context: RouteParams) {
             const ballsForInnings = ballsByInnings[String(innings._id)] || [];
             const lastBall = ballsForInnings?.[0]; // balls are sorted desc, so first is latest
             const oversCompleted = lastBall
-                ? `${lastBall.overNumber}.${lastBall.ballNumber}`
+                ? calculateOversCompleted(lastBall)
                 : "0.0";
             return {
                 ...innings,

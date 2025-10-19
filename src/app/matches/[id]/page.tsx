@@ -1,75 +1,14 @@
 'use client'
 
 import { TabSwitcher } from "@/components/TabSwitcher";
-import { TeamScore, TeamScoreProps } from "@/components/TeamScore";
-import { getRunMessage, getRunsIcon } from "./utils";
-import { CardBase, PageContainer } from "@/components/Styles";
+import { PageContainer } from "@/components/Styles";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { IMatchPopulated } from "@/models/Match";
 import LoadingOverlay from "@/components/LoadingOverlay";
-
-
-const Divider = ({ over }: { over: number }) => (
-    <div className="flex items-center">
-        <span className="h-px flex-1 bg-gray-300" />
-        <span className="shrink-0 px-4 text-gray-900">Over - {over}</span>
-        <span className="h-px flex-1 bg-gray-300" />
-    </div>
-);
-
-const BallDisplay = ({
-    ballNumber,
-    runs,
-    overNumber,
-    isWicket,
-    extraType
-}: {
-    ballNumber: number;
-    runs: number;
-    overNumber: number;
-    isWicket?: boolean;
-    extraType?: string;
-}) => {
-    const type = isWicket ? 'wicket' : extraType;
-    return (
-        <div className="flex gap-3 my-4 items-center">
-            <p className={`h-10 w-10 bg-orange-400 flex items-center justify-center shrink-0 rounded-full border border-orange-100 text-white font-bold ${(extraType === 'noball' && runs > 1) || (isWicket && runs > 0) ? 'text-xs' : ''}`}>
-                {getRunsIcon(runs, isWicket, type)}
-            </p>
-            <p>{getRunMessage(type && type !== 'none' ? type : runs)}</p>
-            <p className="h-8 w-14 bg-blue-400 flex items-center justify-center shrink-0 rounded border border-blue-200 text-white ml-auto">
-                ({overNumber}.{ballNumber})
-            </p>
-        </div>
-    )
-};
-
-const ScoreCard = ({
-    teamA,
-    teamB
-}: {
-    teamA: TeamScoreProps;
-    teamB: TeamScoreProps;
-}) => (
-    <div className={`${CardBase} h-24 flex items-center justify-around`}>
-        <TeamScore
-            name={teamA.name}
-            runs={teamA.runs}
-            wickets={teamA.wickets}
-            overs={teamA.overs.toString()}
-            batting={teamA.batting}
-        />
-        <p className="font-bold">VS</p>
-        <TeamScore
-            name={teamB.name}
-            runs={teamB.runs}
-            wickets={teamB.wickets}
-            overs={teamB.overs.toString()}
-            batting={teamB.batting}
-        />
-    </div>
-);
+import { BallDisplay } from "./ballDisplay";
+import { Divider } from "./divider";
+import { ScoreCard } from "./scoreCard";
 
 export default function MatchDetails() {
     const [matchData, setMatchData] = useState<IMatchPopulated | null>(null);

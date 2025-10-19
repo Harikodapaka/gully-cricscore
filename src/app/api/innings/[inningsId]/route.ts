@@ -4,7 +4,8 @@ import dbConnect from "@/lib/mongodb";
 import Innings from "@/models/Innings";
 import Team from "@/models/Team";
 import Match from "@/models/Match";
-import Ball from "@/models/Ball";
+import Ball, { IBall } from "@/models/Ball";
+import { calculateOversCompleted } from "@/app/utils/calculateOversCompleted";
 
 interface RouteParams {
     params: Promise<{ inningsId: string }>;
@@ -45,7 +46,7 @@ export async function GET(_req: NextRequest, context: RouteParams) {
         }
 
         const oversCompleted = lastBall
-            ? `${lastBall.overNumber}.${lastBall.ballNumber}`
+            ? calculateOversCompleted(lastBall as unknown as IBall)
             : "0.0";
 
         return NextResponse.json({

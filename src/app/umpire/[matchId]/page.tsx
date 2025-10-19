@@ -43,7 +43,7 @@ export default function UmpireScorePage() {
                 setRuns(inningsData.score);
                 setWickets(inningsData.wickets);
                 setOversCompleted(formatOversCompleted(inningsData.oversCompleted));
-                setLastballSaved(inningsData.balls && inningsData.balls.length > 0 ? inningsData.balls[0] : null);
+                setLastballSaved(inningsData?.balls?.length > 0 ? inningsData.balls[0] : null);
             }
         } catch (error) {
             console.error('Error fetching match:', error);
@@ -89,26 +89,32 @@ export default function UmpireScorePage() {
         extraType = 'none',
         isWicket = false
     }: TrackScoreProps) => {
-        const [over, ball] = oversCompleted.split('.').map(Number);
+        // const [over, ball] = oversCompleted.split('.').map(Number);
+        const over = lastballSaved?.overNumber || 0;
+        const ball = lastballSaved?.ballNumber || 0;
+
         let newOver = over;
-        let newBall = isExtra ? ball : ball + 1;
-        if (newBall > 6) {
+        let newBall = ball;
+
+        if (!lastballSaved?.isExtra) {
+            newBall = ball + 1;
+        }
+
+        if (newBall > 6 && !lastballSaved?.isExtra) {
             newOver = newOver + 1;
-            newBall = 0;
+            newBall = 1;
         }
         const body = {
             inningsId: inningsData?._id,
             overNumber: newOver,
-            ballNumber: extraType === 'noball' ? newBall + 1 : newBall, // No-ball adds an extra ball
+            ballNumber: newBall,
             runs: ballRuns,
             isWicket,
             isExtra,
             extraType
         };
         setRuns((r: number) => r + ballRuns);
-        if (!isExtra) {
-            setOversCompleted(`${newOver}.${newBall}`);
-        }
+        if (!isExtra) setOversCompleted(`${newOver}.${newBall}`);
         if (isWicket) {
             setWickets(w => w + 1);
         }
@@ -170,7 +176,7 @@ export default function UmpireScorePage() {
             </div>
         </Modal>)
     }
-    if (match?.currentInnings === 1 && (teamDetails?.numberOfPlayers === wickets || (match?.overs === +(oversCompleted.split('.')[0])))) {
+    if (match?.currentInnings === 1 && (teamDetails?.numberOfPlayers === wickets || (match?.overs === +(formatOversCompleted(oversCompleted).split('.')[0])))) {
 
         return (<Modal isOpen={true} title="Innings completed ✅">
             {loading && <LoadingOverlay />}
