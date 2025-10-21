@@ -1,3 +1,4 @@
+import "./Innings"; // Ensure Innings schema is registered
 import mongoose, { Document, Model, Schema, Types } from "mongoose";
 
 export interface IBall extends Document {

@@ -1,6 +1,7 @@
 import mongoose, { Document, Model, Schema, Types } from "mongoose";
 import { ITeam } from "./Team";
 import "./Team"; // Ensure Team schema is registered
+import "./Innings"; // Ensure Innings schema is registered
 import { IInningsPopulated } from "./Innings";
 
 export interface IMatch extends Document {

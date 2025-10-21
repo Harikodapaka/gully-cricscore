@@ -216,7 +216,7 @@ export function StartMatchForm() {
 
             <button
                 type="submit"
-                className={`${BlueBtn} mt-4 ${loading || !formState.isValid ? 'bg-gray-400 cursor-not-allowed' : ''}`}
+                className={`${BlueBtn} mt-4 w-full ${loading || !formState.isValid ? 'bg-gray-400 cursor-not-allowed' : ''}`}
                 disabled={loading || !formState.isValid}
             >
                 Start Match
