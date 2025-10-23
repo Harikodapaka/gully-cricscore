@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Analytics } from '@vercel/analytics/next';
 import { Geist, Geist_Mono } from "next/font/google";
 import SessionProvider from '@/components/SessionProvider';
 import "./globals.css";
@@ -34,6 +35,7 @@ export default async function RootLayout({
           <Toaster position="top-center" />
           <Header />
           {children}
+          <Analytics />
         </SessionProvider>
       </body>
     </html>
