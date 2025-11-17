@@ -32,6 +32,9 @@ const InningsSchema = new Schema<IInnings>({
     completedAt: { type: Date },
 });
 
+// Add indexes for better query performance
+InningsSchema.index({ status: 1, inningsNumber: 1 }); // For filtering active innings
+
 const Innings: Model<IInnings> = mongoose.models.Innings || mongoose.model<IInnings>("Innings", InningsSchema);
 
 export default Innings;
