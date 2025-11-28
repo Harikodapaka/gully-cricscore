@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { pusherServer } from "@/lib/pusher-server";
 import dbConnect from "@/lib/mongodb";
 import Ball from "@/models/Ball";
 import Innings from "@/models/Innings";
+import Match from "@/models/Match";
 
 export async function POST(req: NextRequest) {
     try {
@@ -17,6 +19,7 @@ export async function POST(req: NextRequest) {
             isWicket = false,
             isExtra = false,
             extraType = "none",
+            matchId
         } = body;
 
         // Validation
@@ -43,6 +46,7 @@ export async function POST(req: NextRequest) {
             isExtra,
             extraType,
         });
+        await pusherServer.trigger(`match-${matchId}`, "score-update", newBall);
 
         // Update innings stats
         innings.score += runs;
