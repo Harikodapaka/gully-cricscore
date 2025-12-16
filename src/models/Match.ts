@@ -36,6 +36,10 @@ const MatchSchema = new Schema<IMatch>({
     winnerMessage: { type: String }
 });
 
+// Add indexes for better query performance
+MatchSchema.index({ status: 1, createdAt: -1 }); // For filtering and sorting matches
+MatchSchema.index({ "teams": 1 }); // For team-based queries
+
 const Match: Model<IMatch> = mongoose.models.Match || mongoose.model<IMatch>("Match", MatchSchema);
 
 export default Match;

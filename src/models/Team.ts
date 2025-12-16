@@ -12,6 +12,9 @@ const TeamSchema = new Schema<ITeam>({
     battingOrder: { type: String, enum: ["1st", "2nd"], required: true },
 });
 
+// Add index for team name searches
+TeamSchema.index({ name: 1 });
+
 const Team: Model<ITeam> = mongoose.models.Team || mongoose.model<ITeam>("Team", TeamSchema);
 
 export default Team;

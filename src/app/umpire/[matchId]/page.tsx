@@ -1,229 +1,138 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useParams } from 'next/navigation';
+import { useEffect, useCallback, useRef, useState } from 'react';
 import { BlueBtn, PageContainer } from '@/components/Styles';
 import { TrackScoreProps, UmpireControls } from '@/components/UmpireControls';
 import { formatOversCompleted } from '@/app/utils/formatOversCompleted';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import Modal from '@/components/Modal';
-import { IMatchPopulated } from '@/models/Match';
-import { ITeam } from '@/models/Team';
-import { IInningsPopulated } from '@/models/Innings';
-import { IBall } from '@/models/Ball';
 import { calculateNextBall } from '@/app/utils/calculateNextBall';
 import { calculateBallsRemaining } from '@/app/utils/calculateBallsRemaining';
-
-// Constants
-const API_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
-
-const showToast = (message: string, type: 'success' | 'error') => {
-    if (typeof window !== 'undefined' && typeof window.showToast === 'function') {
-        window.showToast(message, type);
-    }
-};
+import { useMatchData } from '@/hooks/useMatchData';
+import { matchApi } from '@/services/matchApi';
+import { showToast } from '@/utils/toast';
+import { MATCH_STATUS, INNINGS } from '@/constants/match';
+import { getInningsCompletionStatus, hasSecondInningsWon } from '@/utils/inningsHelpers';
 
 export default function UmpireScorePage() {
     const { matchId } = useParams();
-    const router = useRouter();
 
-    // State
-    const [match, setMatch] = useState<IMatchPopulated>();
-    const [teamDetails, setTeamDetails] = useState<ITeam>();
-    const [inningsData, setInningsData] = useState<IInningsPopulated>();
-    const [runs, setRuns] = useState(0);
-    const [wickets, setWickets] = useState(0);
-    const [oversCompleted, setOversCompleted] = useState('0.0');
-    const [loading, setLoading] = useState(false);
+    // Custom hook for match data
+    const {
+        match,
+        teamDetails,
+        inningsData,
+        scoreState,
+        lastBallSaved,
+        loading,
+        setScoreState,
+        setLastBallSaved,
+        setLoading,
+        fetchMatchData,
+    } = useMatchData(matchId);
+
+    const { runs, wickets, oversCompleted } = scoreState;
+
+    // Local state for UI
     const [showInningsCompletePopup, setShowInningsCompletePopup] = useState(false);
-    const [lastballSaved, setLastballSaved] = useState<IBall | null>(null);
 
-    // Refs to prevent duplicate API calls
+    // Ref to prevent duplicate transition calls
     const isTransitioningRef = useRef(false);
-    const isFetchingRef = useRef(false);
-
-    // Fetch match data
-    const fetchMatchData = useCallback(async () => {
-        if (!matchId || isFetchingRef.current) return;
-
-        isFetchingRef.current = true;
-        setLoading(true);
-
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/match/${matchId}/details`);
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch match data');
-            }
-
-            const matchData = await response.json();
-            const fetchedMatch = matchData.data;
-
-            setMatch(fetchedMatch);
-
-            const currentInningsIndex = (fetchedMatch.currentInnings ?? 1) - 1;
-            const currentInnings = fetchedMatch.innings[currentInningsIndex];
-
-            setInningsData(currentInnings);
-
-            const battingTeam = fetchedMatch.teams.find(
-                (t: ITeam) => t._id === currentInnings.battingTeamId
-            );
-
-            setTeamDetails(battingTeam);
-            setRuns(currentInnings.score || 0);
-            setWickets(currentInnings.wickets || 0);
-            setOversCompleted(formatOversCompleted(currentInnings.oversCompleted));
-
-            const lastBall = currentInnings?.balls?.length > 0
-                ? currentInnings.balls[0]
-                : null;
-            setLastballSaved(lastBall);
-
-        } catch (error) {
-            console.error('Error fetching match:', error);
-            setMatch(undefined);
-            showToast("Error fetching match", 'error');
-            router.push('/');
-        } finally {
-            setLoading(false);
-            isFetchingRef.current = false;
-        }
-    }, [matchId, router]);
 
     // Transition innings
     const transitionInnings = useCallback(async (shouldFetchMatch: boolean) => {
-        if (isTransitioningRef.current) return;
+        if (isTransitioningRef.current || !matchId) return;
 
         isTransitioningRef.current = true;
         setLoading(true);
 
         try {
-            const response = await fetch(
-                `${API_BASE_URL}/api/match/${matchId}/transition-innings`,
-                {
-                    method: 'PATCH',
-                    headers: { "Content-Type": "application/json" },
-                }
-            );
-
-            if (!response.ok) {
-                throw new Error('Failed to transition innings');
-            }
+            await matchApi.transitionInnings(matchId);
 
             if (shouldFetchMatch) {
                 await fetchMatchData();
             }
 
             setShowInningsCompletePopup(false);
-
         } catch (error) {
             console.error('Failed to transition innings:', error);
-            showToast("Error transitioning innings", 'error');
+            showToast('Error transitioning innings', 'error');
         } finally {
             setLoading(false);
             isTransitioningRef.current = false;
         }
-    }, [matchId, fetchMatchData]);
+    }, [matchId, fetchMatchData, setLoading]);
 
-    // Track score
+    // Track score with optimistic updates
     const trackScore = useCallback(async ({
         ballRuns = 0,
         isExtra = false,
         extraType = 'none',
-        isWicket = false
+        isWicket = false,
     }: TrackScoreProps) => {
-        if (!inningsData?._id) {
-            showToast("Innings data not available", 'error');
+        if (!inningsData?._id || !matchId) {
+            showToast('Innings data not available', 'error');
             return;
         }
 
-        const { overNumber, ballNumber } = calculateNextBall(lastballSaved);
+        const { overNumber, ballNumber } = calculateNextBall(lastBallSaved);
 
         const body = {
-            inningsId: inningsData._id,
+            inningsId: String(inningsData._id),
             overNumber,
             ballNumber,
             runs: ballRuns,
             isWicket,
             isExtra,
-            extraType
+            extraType,
+            matchId,
         };
 
+        // Store previous state for rollback
+        const previousState = { ...scoreState };
+
         // Optimistically update UI
-        setRuns(prevRuns => prevRuns + ballRuns);
-        if (!isExtra) {
-            setOversCompleted(`${overNumber}.${ballNumber}`);
-        }
-        if (isWicket) {
-            setWickets(prevWickets => prevWickets + 1);
-        }
+        setScoreState(prev => ({
+            runs: prev.runs + ballRuns,
+            wickets: isWicket ? prev.wickets + 1 : prev.wickets,
+            oversCompleted: isExtra ? prev.oversCompleted : `${overNumber}.${ballNumber}`,
+        }));
 
         try {
-            const response = await fetch(`${API_BASE_URL}/api/ball`, {
-                method: 'POST',
-                body: JSON.stringify(body),
-                headers: { "Content-Type": "application/json" },
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to track score');
-            }
-
-            const data = await response.json();
-            const savedBall: IBall = data.ball;
-            setLastballSaved(savedBall);
-
-            showToast("Saved 👍", 'success');
-
+            const data = await matchApi.trackBall(body);
+            setLastBallSaved(data.ball);
+            showToast('Saved 👍', 'success');
         } catch (error) {
-            console.error("Error tracking score:", error);
-            showToast("Score update failed", 'error');
+            console.error('Error tracking score:', error);
+            showToast('Score update failed', 'error');
 
             // Revert optimistic updates on error
-            setRuns(prevRuns => prevRuns - ballRuns);
-            if (!isExtra) {
-                setOversCompleted(formatOversCompleted(inningsData.oversCompleted));
-            }
-            if (isWicket) {
-                setWickets(prevWickets => prevWickets - 1);
-            }
+            setScoreState(previousState);
         }
-    }, [inningsData, lastballSaved]);
+    }, [inningsData, lastBallSaved, matchId, scoreState, setScoreState, setLastBallSaved]);
 
     // Delete previous ball
     const deletePreviousBall = useCallback(async () => {
-        if (!lastballSaved) {
-            showToast("No ball to delete", 'error');
+        if (!lastBallSaved) {
+            showToast('No ball to delete', 'error');
             return;
         }
 
         setLoading(true);
 
         try {
-            const response = await fetch(
-                `${API_BASE_URL}/api/ball/${lastballSaved._id}`,
-                {
-                    method: 'DELETE',
-                    headers: { "Content-Type": "application/json" },
-                }
-            );
-
-            if (!response.ok) {
-                throw new Error('Failed to delete last ball');
-            }
-
-            showToast("Last ball deleted!", 'success');
+            await matchApi.deleteBall(String(lastBallSaved._id));
+            showToast('Last ball deleted!', 'success');
             await fetchMatchData();
-
         } catch (error) {
             console.error('Failed to delete last ball:', error);
-            showToast("Error deleting last ball", 'error');
+            showToast('Error deleting last ball', 'error');
         } finally {
             setLoading(false);
         }
-    }, [lastballSaved, fetchMatchData]);
+    }, [lastBallSaved, fetchMatchData, setLoading]);
 
     // Get target text for display
     const getTargetText = useCallback((): string => {
@@ -232,7 +141,7 @@ export default function UmpireScorePage() {
         const ballsLeft = calculateBallsRemaining(match.overs ?? 0, oversCompleted);
 
         // First innings - show remaining balls
-        if (match.currentInnings !== 2 || !match.innings || match.innings[0]?.score === undefined) {
+        if (match.currentInnings !== INNINGS.SECOND || !match.innings || match.innings[0]?.score === undefined) {
             return `Remaining balls: ${ballsLeft}`;
         }
 
@@ -248,23 +157,27 @@ export default function UmpireScorePage() {
         return `Needs ${runsNeeded} run${runsNeeded > 1 ? 's' : ''} in ${ballsLeft} ball${ballsLeft !== 1 ? 's' : ''}`;
     }, [match, runs, oversCompleted]);
 
+    // Check innings completion
     const checkInningsCompletion = useCallback(() => {
         if (!match || !teamDetails || loading || isTransitioningRef.current) return;
 
-        const isAllOut = teamDetails.numberOfPlayers === wickets;
-        const completedOvers = Number(formatOversCompleted(oversCompleted).split('.')[0]);
-        const isOversCompleted = match.overs === completedOvers;
+        const { isAllOut, isOversCompleted } = getInningsCompletionStatus(
+            teamDetails.numberOfPlayers,
+            wickets,
+            match.overs ?? 0,
+            oversCompleted
+        );
 
         // First innings - show popup
-        if (match.currentInnings === 1 && (isAllOut || isOversCompleted)) {
+        if (match.currentInnings === INNINGS.FIRST && (isAllOut || isOversCompleted)) {
             setShowInningsCompletePopup(true);
             return;
         }
 
         // Second innings - auto transition
-        if (match.status === 'in-progress' && match.currentInnings === 2) {
+        if (match.status === MATCH_STATUS.IN_PROGRESS && match.currentInnings === INNINGS.SECOND) {
             const firstInningsScore = match.innings?.[0]?.score;
-            const hasWon = firstInningsScore !== undefined && runs > firstInningsScore;
+            const hasWon = hasSecondInningsWon(firstInningsScore, runs);
 
             if (isAllOut || isOversCompleted || hasWon) {
                 setTimeout(() => {
@@ -272,22 +185,25 @@ export default function UmpireScorePage() {
                 }, 1000);
             }
         }
-    }, [match, teamDetails, wickets, oversCompleted, runs, loading, transitionInnings, formatOversCompleted]);
+    }, [match, teamDetails, wickets, oversCompleted, runs, loading, transitionInnings]);
 
+    // Initial fetch
     useEffect(() => {
         if (!matchId) return;
         fetchMatchData();
     }, [matchId, fetchMatchData]);
 
+    // Check completion on state changes
     useEffect(() => {
         checkInningsCompletion();
     }, [checkInningsCompletion]);
 
-    if (match?.status === 'completed' && match?.winnerMessage) {
+    // Match completed view
+    if (match?.status === MATCH_STATUS.COMPLETED && match?.winnerMessage) {
         return (
             <Modal isOpen={true} title="Match completed 👾">
-                <div className='flex flex-col gap-6'>
-                    <p className='text-lg'>{match.winnerMessage} 🏆</p>
+                <div className="flex flex-col gap-6">
+                    <p className="text-lg dark:text-black">{match.winnerMessage} 🏆</p>
                     <Link href="/" className={`${BlueBtn} text-center`}>
                         Back to matches
                     </Link>
@@ -296,15 +212,16 @@ export default function UmpireScorePage() {
         );
     }
 
+    // Innings complete popup
     if (showInningsCompletePopup) {
         return (
             <Modal isOpen={true} title="Innings completed ✅">
                 {loading && <LoadingOverlay />}
-                <div className='flex flex-col gap-6 items-center'>
-                    <p className='text-md font-italic'>
+                <div className="flex flex-col gap-6 items-center">
+                    <p className="text-md font-italic dark:text-black">
                         All players are out / Overs are completed.
                     </p>
-                    <p className='text-lg'>
+                    <p className="text-lg dark:text-black">
                         Team <b>{teamDetails?.name}</b> scored: <b>{runs}</b> runs
                     </p>
                     <button

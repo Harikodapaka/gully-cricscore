@@ -1,79 +1,220 @@
 'use client'
 
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { TabSwitcher } from "@/components/TabSwitcher";
 import { PageContainer } from "@/components/Styles";
-import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { IMatchPopulated } from "@/models/Match";
 import LoadingOverlay from "@/components/LoadingOverlay";
-import { BallDisplay } from "./ballDisplay";
-import { Divider } from "./divider";
 import { ScoreCard } from "./scoreCard";
+import { IBall } from "@/models/Ball";
+import { InningsDisplay } from "./InningsDisplay";
+import { showToast } from "@/utils/toast";
+import { MATCH_STATUS, INNINGS } from "@/constants/match";
+import { matchApi } from "@/services/matchApi";
+import { usePusherMatchUpdates } from "@/hooks/usePusherMatchUpdates";
+import { calculateOversCompleted } from "@/app/utils/calculateOversCompleted";
 
 export default function MatchDetails() {
     const [matchData, setMatchData] = useState<IMatchPopulated | null>(null);
-    const [selectedInnings, setSelectedInnings] = useState<number>(0); // 0 for 1st Innings, 1 for 2nd Innings
+    const [selectedInnings, setSelectedInnings] = useState<number>(0);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const params = useParams();
 
+    // Handle score updates from Pusher
+    const handleScoreUpdate = useCallback((ball: IBall) => {
+        setMatchData((prev) => {
+            if (!prev) return null;
+            
+            const inningsIndex = prev.innings.findIndex(
+                (innings) => String(innings._id) === String(ball.inningsId)
+            );
+            
+            if (inningsIndex === -1) {
+                // Innings not found, return unchanged
+                return prev;
+            }
+            
+            const currentInnings = prev.innings[inningsIndex];
+            
+            // Create new array with updated innings at the found index
+            const updatedInnings = [...prev.innings];
+            updatedInnings[inningsIndex] = {
+                ...currentInnings,
+                // Update runs and wickets based on the new ball
+                score: (currentInnings.score || 0) + (ball.runs || 0),
+                wickets: ball.isWicket 
+                    ? (currentInnings.wickets || 0) + 1 
+                    : (currentInnings.wickets || 0),
+                // Update overs completed based on the new ball
+                oversCompleted: calculateOversCompleted(ball),
+                // Add the new ball to the balls array
+                balls: [ball, ...(currentInnings?.balls ?? [])],
+            };
+            
+            return { ...prev, innings: updatedInnings };
+        });
+    }, []);
+
+    // Handle ball deletion from Pusher
+    const handleBallDeleted = useCallback((payload: { ballId: string; inningsId: string; runs: number; isWicket: boolean }) => {
+        setMatchData((prev) => {
+            if (!prev) return null;
+            
+            const inningsIndex = prev.innings.findIndex(
+                (innings) => String(innings._id) === String(payload.inningsId)
+            );
+            
+            if (inningsIndex === -1) {
+                // Innings not found, return unchanged
+                return prev;
+            }
+            
+            const currentInnings = prev.innings[inningsIndex];
+            
+            // Remove the deleted ball from the balls array
+            const updatedBalls = (currentInnings?.balls ?? []).filter(
+                (ball) => String(ball._id) !== payload.ballId
+            );
+            
+            // Get the new last ball to calculate oversCompleted
+            const lastBall = updatedBalls.length > 0 ? updatedBalls[0] : null;
+            const newOversCompleted = lastBall 
+                ? calculateOversCompleted(lastBall)
+                : '0.0';
+            
+            // Create new array with updated innings at the found index
+            const updatedInnings = [...prev.innings];
+            updatedInnings[inningsIndex] = {
+                ...currentInnings,
+                // Decrement runs and wickets
+                score: Math.max(0, (currentInnings.score || 0) - payload.runs),
+                wickets: payload.isWicket 
+                    ? Math.max(0, (currentInnings.wickets || 0) - 1)
+                    : (currentInnings.wickets || 0),
+                // Update overs completed based on the new last ball
+                oversCompleted: newOversCompleted,
+                // Remove the deleted ball from the balls array
+                balls: updatedBalls,
+            };
+            
+            return { ...prev, innings: updatedInnings };
+        });
+    }, []);
+
+    // Subscribe to Pusher for live updates
+    const { isConnected } = usePusherMatchUpdates({
+        matchId: params?.id,
+        matchStatus: matchData?.status,
+        onScoreUpdate: handleScoreUpdate,
+        onBallDeleted: handleBallDeleted,
+    });
+
+    // Fetch match data
     useEffect(() => {
         if (!params?.id) return;
+
         async function fetchMatch() {
             if (!params?.id) return;
-            const res = await fetch(`/api/match/${params.id}/details`);
-            if (res.ok) {
-                const data = await res.json();
+
+            setLoading(true);
+            setError(null);
+
+            try {
+                const data = await matchApi.fetchMatchDetails(params.id);
                 setMatchData(data.data);
-                if (data.data.currentInnings === 2 && data.data.status === 'in-progress') {
-                    setSelectedInnings(1); // Switch to 2nd innings tab if match is in progress and 2nd innings has started
+                // Switch to 2nd innings tab if match is in progress and 2nd innings has started
+                if (data.data.currentInnings === INNINGS.SECOND && data.data.status === MATCH_STATUS.IN_PROGRESS) {
+                    setSelectedInnings(1);
                 }
-            } else {
-                if (typeof window !== 'undefined' && typeof window.showToast === 'function') {
-                    window.showToast("Error fetching match", 'error');
-                }
+            } catch (err) {
+                console.error('Error fetching match:', err);
+                setError("Failed to load match data");
+                showToast("Error fetching match", 'error');
+            } finally {
+                setLoading(false);
             }
         }
         fetchMatch();
     }, [params?.id]);
 
-    if (!matchData) {
+    // Memoized team lookup map
+    const teamsById = useMemo(() => {
+        if (!matchData?.teams) return {};
+        return matchData.teams.reduce((acc, team) => {
+            acc[String(team._id)] = { _id: String(team._id), name: String(team.name) };
+            return acc;
+        }, {} as Record<string, { _id: string; name: string }>);
+    }, [matchData?.teams]);
+
+    // Memoized innings data
+    const { firstInnings, secondInnings } = useMemo(() => ({
+        firstInnings: matchData?.innings?.[0],
+        secondInnings: matchData?.innings?.[1],
+    }), [matchData?.innings]);
+
+    // Memoized team data for ScoreCard
+    const { teamA, teamB } = useMemo(() => {
+        const isInProgress = matchData?.status === MATCH_STATUS.IN_PROGRESS;
+        
+        return {
+            teamA: {
+                name: teamsById[firstInnings?.battingTeamId]?.name || 'Team A',
+                runs: firstInnings?.score || 0,
+                wickets: firstInnings?.wickets || 0,
+                overs: (firstInnings?.oversCompleted ?? '').toString(),
+                batting: isInProgress && matchData?.currentInnings === INNINGS.FIRST
+            },
+            teamB: {
+                name: teamsById[secondInnings?.battingTeamId]?.name || 'Team B',
+                runs: secondInnings?.score || 0,
+                wickets: secondInnings?.wickets || 0,
+                overs: (secondInnings?.oversCompleted ?? '').toString(),
+                batting: isInProgress && matchData?.currentInnings === INNINGS.SECOND
+            }
+        };
+    }, [teamsById, firstInnings, secondInnings, matchData?.status, matchData?.currentInnings]);
+
+    // Tab change handler
+    const handleTabChange = useCallback((index: number) => {
+        setSelectedInnings(index);
+    }, []);
+
+    // Get the currently selected innings data
+    const selectedInningsData = useMemo(() => {
+        if (selectedInnings === 0) return firstInnings;
+        return secondInnings;
+    }, [selectedInnings, firstInnings, secondInnings]);
+
+    // Check if 2nd innings tab is selected but hasn't started yet
+    const isSecondInningsYetToBat = selectedInnings === 1 && matchData?.currentInnings === INNINGS.FIRST;
+
+    // Loading state
+    if (loading) {
         return <LoadingOverlay />;
     }
 
-
-    // Find teams by their _id for easy lookup
-    const teamsById = matchData.teams.reduce((acc, team) => {
-        acc[String(team._id)] = { _id: String(team._id), name: String(team.name) };
-        return acc;
-    }, {} as Record<string, { _id: string; name: string }>);
-
-    // Get both innings
-    const [firstInnings, secondInnings] = matchData.innings;
-
-    // Team A: 1st batting team
-    const teamA = {
-        name: teamsById[firstInnings?.battingTeamId]?.name || 'Team A',
-        runs: firstInnings?.score || 0,
-        wickets: firstInnings?.wickets || 0,
-        overs: (firstInnings?.oversCompleted ?? '').toString(),
-        batting: matchData.status === 'in-progress' && matchData.currentInnings === 1
-    };
-
-    // Team B: 2nd batting team
-    const teamB = {
-        name: teamsById[secondInnings?.battingTeamId]?.name || 'Team B',
-        runs: secondInnings?.score || 0,
-        wickets: secondInnings?.wickets || 0,
-        overs: (secondInnings?.oversCompleted ?? '').toString(),
-        batting: matchData.status === 'in-progress' && matchData.currentInnings === 2
-    };
-
-    const handleTabChange = (index: number, label: string) => {
-        setSelectedInnings(index);
-    };
+    // Error state
+    if (error || !matchData) {
+        return (
+            <div className={PageContainer}>
+                <div className="text-center text-red-500 py-8 font-semibold">
+                    {error || "Failed to load match data"}
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className={PageContainer}>
             <ScoreCard teamA={teamA} teamB={teamB} />
+
+            {isConnected && (
+                <div className="m-3 animate-pulse text-orange-500 font-medium text-right">
+                    🔴 Live Updates Enabled
+                </div>
+            )}
 
             <div className="flex justify-center mt-4">
                 <TabSwitcher
@@ -84,63 +225,16 @@ export default function MatchDetails() {
             </div>
 
             <div className="rounded-md border border-gray-300 shadow-sm my-4 p-2">
-                {/* Show balls for the selected innings */}
-                {(matchData.innings ?? []).map((innings, idx) => {
-                    // If 2nd innings tab is selected but no 2nd innings data, show "Yet to bat" and don't render the balls
-                    if (selectedInnings === 1 && matchData.currentInnings === 1) {
-                        return (
-                            <div
-                                key={`innings-${idx}`}
-                                className="text-center text-gray-500 py-8 font-semibold"
-                            >
-                                Yet to bat
-                            </div>
-                        );
-                    }
-                    if (innings?.balls?.length === 0) {
-                        return (
-                            <div
-                                key={`innings-${idx}`}
-                                className="text-center text-gray-500 py-8 font-semibold"
-                            >
-                                No balls bowled yet
-                            </div>
-                        );
-                    }
-
-                    return (
-                        <div
-                            key={`innings-${idx}`}
-                            style={{ display: idx === selectedInnings ? 'block' : 'none' }}
-                        >
-                            {/* Only render balls if innings data exists */}
-                            {innings && Array.from({ length: matchData.overs }, (_, overIdx) => overIdx)
-                                .reverse()
-                                .map((overIdx) => {
-                                    const ballsForOver = (innings.balls ?? []).filter(
-                                        (ball) => ball.overNumber === overIdx
-                                    );
-                                    if (ballsForOver.length === 0) return null;
-                                    return (
-                                        <div key={`over-${overIdx + 1}`}>
-                                            <Divider over={overIdx + 1} />
-                                            {ballsForOver
-                                                .map((ball, i) => (
-                                                    <BallDisplay
-                                                        key={`ball-${overIdx + 1}-${i}`}
-                                                        ballNumber={ball.ballNumber}
-                                                        runs={ball.runs}
-                                                        isWicket={ball.isWicket}
-                                                        extraType={ball.extraType}
-                                                        overNumber={ball.overNumber}
-                                                    />
-                                                ))}
-                                        </div>
-                                    );
-                                })}
-                        </div>
-                    );
-                })}
+                {isSecondInningsYetToBat ? (
+                    <div className="text-center text-gray-500 py-8 font-semibold">
+                        Yet to bat
+                    </div>
+                ) : (
+                    <InningsDisplay
+                        balls={selectedInningsData?.balls ?? []}
+                        totalOvers={matchData.overs}
+                    />
+                )}
             </div>
         </div>
     );
