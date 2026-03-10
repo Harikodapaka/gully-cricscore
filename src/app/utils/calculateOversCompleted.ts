@@ -1,6 +1,12 @@
-import { IBall } from "@/models/Ball";
+// import type { IBall } from "@/models/Ball";
 
-export const calculateOversCompleted = (ball: IBall): string => {
-    const { overNumber, ballNumber, isExtra } = ball;
-    return `${overNumber}.${isExtra ? ballNumber - 1 : ballNumber}`;
-}
+type BallLike = {
+  overNumber: number;
+  ballNumber: number;
+  isExtra: boolean;
+};
+
+export const calculateOversCompleted = (ball: BallLike): string => {
+  const { overNumber, ballNumber, isExtra } = ball;
+  return `${overNumber}.${isExtra ? ballNumber - 1 : ballNumber}`;
+};

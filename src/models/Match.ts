@@ -1,45 +1,56 @@
-import mongoose, { Document, Model, Schema, Types } from "mongoose";
-import { ITeam } from "./Team";
+import mongoose, {
+  type Document,
+  type Model,
+  Schema,
+  type Types,
+} from "mongoose";
+import type { ITeam } from "./Team";
 import "./Team"; // Ensure Team schema is registered
 import "./Innings"; // Ensure Innings schema is registered
-import { IInningsPopulated } from "./Innings";
+import type { IInningsPopulated } from "./Innings";
 
 export interface IMatch extends Document {
-    location: string;
-    overs: number;
-    status: "in-progress" | "completed";
-    currentInnings: 1 | 2;
-    createdAt: Date;
-    completedAt?: Date;
-    teams: Types.ObjectId[];
-    innings: Types.ObjectId[];
-    wonBy?: Types.ObjectId;
-    winnerMessage?: string;
+  location: string;
+  overs: number;
+  status: "in-progress" | "completed";
+  currentInnings: 1 | 2;
+  createdAt: Date;
+  completedAt?: Date;
+  teams: Types.ObjectId[];
+  innings: Types.ObjectId[];
+  wonBy?: Types.ObjectId;
+  winnerMessage?: string;
 }
 
-export interface IMatchPopulated extends Omit<IMatch, 'teams' | 'innings' | 'wonBy'> {
-    teams: ITeam[];
-    innings: IInningsPopulated[];
-    wonBy?: string;
+export interface IMatchPopulated
+  extends Omit<IMatch, "teams" | "innings" | "wonBy"> {
+  teams: ITeam[];
+  innings: IInningsPopulated[];
+  wonBy?: string;
 }
 
 const MatchSchema = new Schema<IMatch>({
-    location: { type: String, required: true },
-    overs: { type: Number, required: true },
-    status: { type: String, enum: ["in-progress", "completed"], default: "in-progress" },
-    currentInnings: { type: Number, enum: [1, 2], default: 1 },
-    createdAt: { type: Date, default: Date.now },
-    completedAt: { type: Date },
-    teams: [{ type: Schema.Types.ObjectId, ref: "Team" }],
-    innings: [{ type: Schema.Types.ObjectId, ref: "Innings" }],
-    wonBy: { type: Schema.Types.ObjectId, ref: "Team" },
-    winnerMessage: { type: String }
+  location: { type: String, required: true },
+  overs: { type: Number, required: true },
+  status: {
+    type: String,
+    enum: ["in-progress", "completed"],
+    default: "in-progress",
+  },
+  currentInnings: { type: Number, enum: [1, 2], default: 1 },
+  createdAt: { type: Date, default: Date.now },
+  completedAt: { type: Date },
+  teams: [{ type: Schema.Types.ObjectId, ref: "Team" }],
+  innings: [{ type: Schema.Types.ObjectId, ref: "Innings" }],
+  wonBy: { type: Schema.Types.ObjectId, ref: "Team" },
+  winnerMessage: { type: String },
 });
 
 // Add indexes for better query performance
 MatchSchema.index({ status: 1, createdAt: -1 }); // For filtering and sorting matches
-MatchSchema.index({ "teams": 1 }); // For team-based queries
+MatchSchema.index({ teams: 1 }); // For team-based queries
 
-const Match: Model<IMatch> = mongoose.models.Match || mongoose.model<IMatch>("Match", MatchSchema);
+const Match: Model<IMatch> =
+  mongoose.models.Match || mongoose.model<IMatch>("Match", MatchSchema);
 
 export default Match;

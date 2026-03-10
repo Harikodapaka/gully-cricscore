@@ -1,26 +1,30 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import MatchCard from "@/components/MatchCard";
 import LoadingOverlay from "@/components/LoadingOverlay";
+import MatchCard from "@/components/MatchCard";
+import type { IMatchPopulated } from "@/models/Match";
 
 async function MatchesList() {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/match`, {
-    cache: "no-store",
-    method: "GET",
-    headers: { "Content-Type": "application/json" },
-  });
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_BASE_URL}/api/match?limit=10`,
+    {
+      cache: "no-store",
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    },
+  );
 
   if (!res.ok) {
     return <div className="text-red-500 p-6">❌ Failed to load matches</div>;
   }
 
-  const matches: any[] = await res.json();
+  const matches: IMatchPopulated[] = await res.json();
 
   return (
     <>
       {matches && matches.length > 0 ? (
         matches.map((match) => (
-          <Link key={match._id} href={`/matches/${match._id}`}>
+          <Link key={`match-${match._id}`} href={`/matches/${match._id}`}>
             <MatchCard match={match} />
           </Link>
         ))

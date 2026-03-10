@@ -1,7 +1,7 @@
+import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
-import { Analytics } from '@vercel/analytics/next';
 import { Geist, Geist_Mono } from "next/font/google";
-import SessionProvider from '@/components/SessionProvider';
+import SessionProvider from "@/components/SessionProvider";
 import "./globals.css";
 import Header from "@/components/Header";
 import Toaster from "@/components/Toaster";

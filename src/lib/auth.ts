@@ -1,7 +1,8 @@
-import { NextAuthOptions } from 'next-auth';
-import GoogleProvider from 'next-auth/providers/google';
-import dbConnect from './mongodb';
-import User from '@/models/User';
+// biome-ignore-all lint/style/noNonNullAssertion: no need
+import type { NextAuthOptions, Session } from "next-auth";
+import GoogleProvider from "next-auth/providers/google";
+import User from "@/models/User";
+import dbConnect from "./mongodb";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -19,13 +20,13 @@ export const authOptions: NextAuthOptions = {
         await User.create({
           email: user.email,
           name: user.name,
-          role: 'spectator',
+          role: "spectator",
         });
       }
 
       return true;
     },
-    async session({ session }: { session: any }) {
+    async session({ session }: { session: Session }) {
       await dbConnect();
       const dbUser = await User.findOne({ email: session.user?.email });
 
@@ -37,6 +38,6 @@ export const authOptions: NextAuthOptions = {
     },
   },
   pages: {
-    signIn: '/umpire',
+    signIn: "/umpire",
   },
 };
