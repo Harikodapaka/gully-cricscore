@@ -37,7 +37,10 @@ async function MatchesList() {
 
 export default function Home() {
   return (
-    <div className="mx-auto max-w-2xl px-4 py-6">
+    <div className="mx-auto max-w-[900px] px-4 py-5">
+      <div className="sec-head">
+        <span className="sec-title">Recent Matches</span>
+      </div>
       <Suspense fallback={<LoadingOverlay />}>
         <MatchesList />
       </Suspense>

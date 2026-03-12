@@ -31,29 +31,13 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
     const errorMessage = typeof error === "string" ? error : error?.message;
     const hasError = Boolean(errorMessage);
 
-    const baseInputClasses = `h-10 
-      mt-0.5 pl-2 w-full rounded border shadow-sm sm:text-sm dark:text-black
-      transition-colors duration-200
-      ${disabled ? "bg-gray-100 cursor-not-allowed" : "bg-white"}
-      ${hasError ? "border-red-500 focus:border-red-500 focus:ring-red-500" : "border-gray-300"}
-      ${inputClassName}
-    `.trim();
-
-    const baseLabelClasses = `
-      text-sm font-medium
-      ${hasError ? "text-red-600" : "text-gray-700 dark:text-gray-300"}
-      ${disabled ? "text-gray-400" : ""}
-      ${labelClassName}
-    `.trim();
-
     return (
       <div className={containerClassName}>
         <label htmlFor={inputId}>
-          <span className={baseLabelClasses}>
+          <span className={`form-field-label ${labelClassName}`}>
             {label}
-            {required && <span className="text-red-500 ml-0.5">*</span>}
+            {required && <span className="req">*</span>}
           </span>
-
           <input
             ref={ref}
             type={type}
@@ -67,19 +51,23 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
                   ? `${inputId}-helper`
                   : undefined
             }
-            className={baseInputClasses}
+            className={`form-field-input${hasError ? " has-error" : ""}${disabled ? " opacity-50 cursor-not-allowed" : ""} ${inputClassName}`}
             {...inputProps}
           />
         </label>
 
         {errorMessage && (
-          <p id={`${inputId}-error`} className="mt-1 text-sm text-red-600">
+          <p id={`${inputId}-error`} className="form-field-error">
             {errorMessage}
           </p>
         )}
 
         {!errorMessage && helperText && (
-          <p id={`${inputId}-helper`} className="mt-1 text-sm text-gray-500">
+          <p
+            id={`${inputId}-helper`}
+            className="form-field-error"
+            style={{ color: "var(--espn-dim)" }}
+          >
             {helperText}
           </p>
         )}

@@ -1,12 +1,21 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { type SubmitHandler, useForm } from "react-hook-form";
 import Input from "@/components/Input";
 import LoadingOverlay from "@/components/LoadingOverlay";
 import RadioGroup from "@/components/RadioGroup";
-import { BlueBtn, SmallBtns } from "@/components/Styles";
+
+const LAST_MATCH_CONFIG_KEY = "gully_last_match_config";
+
+type SavedMatchConfig = {
+  location: string;
+  teamAName: string;
+  teamBName: string;
+  noOfPlayers: number;
+  totalOvers: number;
+};
 
 interface MatchFormValues {
   location: string;
@@ -18,12 +27,28 @@ interface MatchFormValues {
 }
 
 export function StartMatchForm() {
-  const { register, handleSubmit, formState, setValue } =
+  const { register, handleSubmit, formState, setValue, reset } =
     useForm<MatchFormValues>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { errors } = formState;
   const router = useRouter();
+
+  // Pre-fill form from last match config
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(LAST_MATCH_CONFIG_KEY);
+      if (!saved) return;
+      const config: SavedMatchConfig = JSON.parse(saved);
+      setValue("location", config.location);
+      setValue("teamAName", config.teamAName);
+      setValue("teamBName", config.teamBName);
+      setValue("noOfPlayers", config.noOfPlayers);
+      setValue("totalOvers", config.totalOvers);
+    } catch {
+      // ignore malformed data
+    }
+  }, [setValue]);
 
   const createMatch: SubmitHandler<MatchFormValues> = async (formData) => {
     setLoading(true);
@@ -43,6 +68,17 @@ export function StartMatchForm() {
 
       const data: { _id: string } = await res.json();
       sessionStorage.setItem("matchId", data._id);
+
+      // Save config for "Play Again" pre-fill
+      const config: SavedMatchConfig = {
+        location: formData.location,
+        teamAName: formData.teamAName,
+        teamBName: formData.teamBName,
+        noOfPlayers: formData.noOfPlayers,
+        totalOvers: formData.totalOvers,
+      };
+      localStorage.setItem(LAST_MATCH_CONFIG_KEY, JSON.stringify(config));
+
       router.replace(`/umpire/${data._id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
@@ -66,7 +102,7 @@ export function StartMatchForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit(createMatch)} className="space-y-4">
+    <form onSubmit={handleSubmit(createMatch)} className="flex flex-col gap-4">
       <Input
         label="Location"
         type="string"
@@ -142,28 +178,17 @@ export function StartMatchForm() {
           error={errors.noOfPlayers?.message}
           required
         />
-        <div className="flex gap-2 mt-2">
-          <button
-            type="button"
-            onClick={() => setPlayers(5)}
-            className={SmallBtns}
-          >
-            5 Players
-          </button>
-          <button
-            type="button"
-            onClick={() => setPlayers(10)}
-            className={SmallBtns}
-          >
-            10 Players
-          </button>
-          <button
-            type="button"
-            onClick={() => setPlayers(11)}
-            className={SmallBtns}
-          >
-            11 Players
-          </button>
+        <div className="form-chips">
+          {[5, 10, 11].map((n) => (
+            <button
+              key={n}
+              type="button"
+              className="form-chip"
+              onClick={() => setPlayers(n)}
+            >
+              {n} Players
+            </button>
+          ))}
         </div>
       </div>
       <div>
@@ -202,39 +227,36 @@ export function StartMatchForm() {
           error={errors.totalOvers?.message}
           required
         />
-        <div className="flex gap-2 mt-2">
-          <button
-            type="button"
-            onClick={() => setOvers(5)}
-            className={SmallBtns}
-          >
-            5 Overs
-          </button>
-          <button
-            type="button"
-            onClick={() => setOvers(10)}
-            className={SmallBtns}
-          >
-            10 Overs
-          </button>
-          <button
-            type="button"
-            onClick={() => setOvers(15)}
-            className={SmallBtns}
-          >
-            15 Overs
-          </button>
+        <div className="form-chips">
+          {[5, 10, 15].map((n) => (
+            <button
+              key={n}
+              type="button"
+              className="form-chip"
+              onClick={() => setOvers(n)}
+            >
+              {n} Overs
+            </button>
+          ))}
         </div>
       </div>
 
       <button
         type="submit"
-        className={`${BlueBtn} mt-4 w-full ${loading || !formState.isValid ? "bg-gray-400 cursor-not-allowed" : ""}`}
+        className="form-submit"
         disabled={loading || !formState.isValid}
       >
         Start Match
       </button>
-      {error && <p className="text-red-500">{error}</p>}
+      <button
+        type="button"
+        className="ump-delete-btn"
+        onClick={() => reset()}
+        disabled={loading}
+      >
+        Clear
+      </button>
+      {error && <p className="form-field-error">{error}</p>}
       {loading && <LoadingOverlay />}
     </form>
   );

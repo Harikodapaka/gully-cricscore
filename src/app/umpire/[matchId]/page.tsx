@@ -7,7 +7,6 @@ import { calculateBallsRemaining } from "@/app/utils/calculateBallsRemaining";
 import { calculateNextBall } from "@/app/utils/calculateNextBall";
 import LoadingOverlay from "@/components/LoadingOverlay";
 import Modal from "@/components/Modal";
-import { BlueBtn, PageContainer } from "@/components/Styles";
 import {
   type TrackScoreProps,
   UmpireControls,
@@ -237,14 +236,42 @@ export default function UmpireScorePage() {
     checkInningsCompletion();
   }, [checkInningsCompletion]);
 
+  // Persist match config to localStorage whenever a completed match is viewed
+  // so "Play Again" pre-fills the form even for matches not started from this session
+  useEffect(() => {
+    if (match?.status !== MATCH_STATUS.COMPLETED) return;
+    const teamA = match.teams.find((t) => t.battingOrder === "1st");
+    const teamB = match.teams.find((t) => t.battingOrder === "2nd");
+    if (!teamA || !teamB) return;
+    const config = {
+      location: match.location,
+      teamAName: teamA.name,
+      teamBName: teamB.name,
+      noOfPlayers: teamA.numberOfPlayers,
+      totalOvers: match.overs,
+    };
+    localStorage.setItem("gully_last_match_config", JSON.stringify(config));
+  }, [match]);
+
   // Match completed view
   if (match?.status === MATCH_STATUS.COMPLETED && match?.winnerMessage) {
     return (
-      <Modal isOpen={true} title="Match completed 👾">
-        <div className="flex flex-col gap-6">
-          <p className="text-lg dark:text-black">{match.winnerMessage} 🏆</p>
-          <Link href="/" className={`${BlueBtn} text-center`}>
-            Back to matches
+      <Modal isOpen={true} title="Match Complete">
+        <div className="flex flex-col gap-5">
+          <p
+            style={{
+              fontFamily: "var(--font-cond), sans-serif",
+              fontSize: 15,
+              color: "var(--espn-text2)",
+            }}
+          >
+            🏆 {match.winnerMessage}
+          </p>
+          <Link href="/umpire" className="form-submit">
+            Play Again
+          </Link>
+          <Link href="/" className="ump-delete-btn">
+            Back to Matches
           </Link>
         </div>
       </Modal>
@@ -254,22 +281,34 @@ export default function UmpireScorePage() {
   // Innings complete popup
   if (showInningsCompletePopup) {
     return (
-      <Modal isOpen={true} title="Innings completed ✅">
+      <Modal isOpen={true} title="Innings Complete">
         {loading && <LoadingOverlay />}
-        <div className="flex flex-col gap-6 items-center">
-          <p className="text-md font-italic dark:text-black">
-            All players are out / Overs are completed.
+        <div className="flex flex-col gap-5 items-center">
+          <p
+            style={{
+              fontFamily: "var(--font-cond), sans-serif",
+              fontSize: 13,
+              color: "var(--espn-muted)",
+            }}
+          >
+            All players out / Overs completed
           </p>
-          <p className="text-lg dark:text-black">
-            Team <b>{teamDetails?.name}</b> scored: <b>{runs}</b> runs
+          <p
+            style={{
+              fontFamily: "var(--font-head), sans-serif",
+              fontSize: 24,
+              color: "var(--espn-text)",
+            }}
+          >
+            {teamDetails?.name} — {runs} runs
           </p>
           <button
             type="button"
             onClick={() => transitionInnings(true)}
-            className={`${BlueBtn} text-center`}
+            className="form-submit"
             disabled={loading}
           >
-            Start next innings
+            Start 2nd Innings
           </button>
         </div>
       </Modal>
@@ -277,7 +316,7 @@ export default function UmpireScorePage() {
   }
 
   return (
-    <div className={PageContainer}>
+    <div className="mx-auto max-w-[480px] px-4 py-5">
       {loading && <LoadingOverlay />}
       {matchId && match && (
         <UmpireControls

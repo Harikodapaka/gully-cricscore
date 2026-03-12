@@ -4,8 +4,6 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { calculateOversCompleted } from "@/app/utils/calculateOversCompleted";
 import LoadingOverlay from "@/components/LoadingOverlay";
-import { PageContainer } from "@/components/Styles";
-import { TabSwitcher } from "@/components/TabSwitcher";
 import { INNINGS, MATCH_STATUS } from "@/constants/match";
 // Import the exported type instead of re-declaring it locally
 import {
@@ -214,58 +212,94 @@ export default function MatchDetails() {
 
   if (error || !matchData) {
     return (
-      <div className={PageContainer}>
-        <div className="text-center text-red-500 py-8 font-semibold">
+      <div className="mx-auto max-w-[900px] px-4 py-6">
+        <div
+          className="text-center py-8 font-semibold"
+          style={{ color: "var(--espn-red)" }}
+        >
           {error || "Failed to load match data"}
         </div>
       </div>
     );
   }
 
-  return (
-    <div className={PageContainer}>
-      <ScoreCard teamA={teamA} teamB={teamB} />
+  const battingTeamName = teamB.batting
+    ? teamB.name
+    : teamA.batting
+      ? teamA.name
+      : null;
 
-      {/* Task 12: Show connection status banners */}
-      {isConnected && !isReconnecting && (
-        <div className="m-3 animate-pulse text-orange-500 font-medium text-right">
-          🔴 Live Updates Enabled
-        </div>
-      )}
+  return (
+    <div className="mx-auto max-w-[900px] px-4 py-5">
+      {/* Live status bar */}
+      {isConnected &&
+        !isReconnecting &&
+        matchData.status === MATCH_STATUS.IN_PROGRESS && (
+          <div className="dp-status-bar bar-live">
+            <span className="dp-pulse" />
+            Live Updates Active
+            {battingTeamName ? ` — ${battingTeamName} Batting` : ""}
+          </div>
+        )}
+
+      {/* Reconnecting banner */}
       {isReconnecting && matchData.status === MATCH_STATUS.IN_PROGRESS && (
-        <div className="m-3 flex items-center justify-end gap-2 text-yellow-600 font-medium">
-          <span className="animate-spin">⟳</span>
+        <div className="dp-status-bar bar-reconnect">
+          <span className="dp-spin">⟳</span>
           <span>Reconnecting… scores may be outdated</span>
-          <button
-            type="button"
-            onClick={fetchMatch}
-            className="ml-2 underline text-sm text-blue-500"
-          >
+          <button type="button" onClick={fetchMatch}>
             Refresh now
           </button>
         </div>
       )}
 
-      <div className="flex justify-center mt-4">
-        <TabSwitcher
-          tabs={["1st Innings", "2nd Innings"]}
-          ativeTab={selectedInnings}
-          onChange={handleTabChange}
-        />
+      {/* Scoreboard widget */}
+      <ScoreCard
+        teamA={teamA}
+        teamB={teamB}
+        status={matchData.status}
+        totalOvers={matchData.overs}
+      />
+
+      {/* Innings tabs */}
+      <div className="detail-tabs">
+        <button
+          type="button"
+          className={`detail-tab${selectedInnings === 0 ? " active" : ""}`}
+          onClick={() => handleTabChange(0)}
+        >
+          1st Innings
+        </button>
+        <button
+          type="button"
+          className={`detail-tab${selectedInnings === 1 ? " active" : ""}`}
+          onClick={() => handleTabChange(1)}
+        >
+          2nd Innings
+        </button>
       </div>
 
-      <div className="rounded-md border border-gray-300 shadow-sm my-4 p-2">
-        {isSecondInningsYetToBat ? (
-          <div className="text-center text-gray-500 py-8 font-semibold">
-            Yet to bat
+      {/* Innings content */}
+      {isSecondInningsYetToBat ? (
+        <div className="ytb">
+          <div className="ytb-ico">🏏</div>
+          <div className="ytb-h">Yet to Bat</div>
+          <div className="ytb-p">
+            Ball-by-ball updates will appear here once the innings begins
           </div>
-        ) : (
-          <InningsDisplay
-            balls={selectedInningsData?.balls ?? []}
-            totalOvers={matchData.overs}
-          />
-        )}
-      </div>
+        </div>
+      ) : (selectedInningsData?.balls ?? []).length === 0 ? (
+        <div className="ytb">
+          <div className="ytb-ico">🏏</div>
+          <div className="ytb-h">Innings In Progress</div>
+          <div className="ytb-p">Ball-by-ball updates will appear here</div>
+        </div>
+      ) : (
+        <InningsDisplay
+          balls={selectedInningsData?.balls ?? []}
+          totalOvers={matchData.overs}
+        />
+      )}
     </div>
   );
 }

@@ -1,7 +1,6 @@
 import React from "react";
 import { formatOversCompleted } from "@/app/utils/formatOversCompleted";
 import Modal from "./Modal";
-import { DeleteBallBtn, RunsBtn, UmpireExtraBtn, WicketBtn } from "./Styles";
 
 export interface TeamScoreBoardProps {
   name: string;
@@ -10,6 +9,7 @@ export interface TeamScoreBoardProps {
   overs: string;
   target?: string;
 }
+
 const TeamScoreBoard = ({
   name,
   runs,
@@ -17,30 +17,21 @@ const TeamScoreBoard = ({
   overs,
   target,
 }: TeamScoreBoardProps) => (
-  <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-4 mb-4 shadow-lg dark:bg-gradient-to-r dark:from-gray-200 dark:to-gray-200">
-    <div className="flex items-center justify-between text-white dark:text-slate-700">
-      <div>
-        <h2 className="text-3xl font-bold">{name}</h2>
-        <p className="text-blue-100 text-sm mt-1 dark:text-slate-700">
-          Batting 🏏
-        </p>
+  <div className="ump-score-bar">
+    <div className="ump-score-top">
+      <span className="ump-score-team">{name}</span>
+      <span className="ump-score-label">Batting 🏏</span>
+    </div>
+    <div className="ump-score-body">
+      <div className="ump-score-runs">
+        {runs}
+        <span className="uw">/{wickets}</span>
       </div>
-      <div className="text-right dark:text-slate-700">
-        <div className="text-5xl font-bold">
-          {runs}/{wickets}
-        </div>
-        <p className="text-blue-100 text-lg mt-1 dark:text-slate-700">
-          ({formatOversCompleted(overs)}) overs
-        </p>
+      <div className="ump-score-overs">
+        <div>{formatOversCompleted(overs)} overs</div>
       </div>
     </div>
-    {target && (
-      <div className="text-right flex justify-center">
-        <p className="text-blue-100 text-sm mt-1 dark:text-slate-700">
-          {target}
-        </p>
-      </div>
-    )}
+    {target && <div className="ump-target-bar">{target}</div>}
   </div>
 );
 
@@ -66,9 +57,12 @@ export const UmpireControls = ({
   deletePreviousBall,
 }: UmpireControlsProps) => {
   const runButtons = [0, 1, 2, 3, 4, 6];
+  const runOutRuns = [0, 1, 2, 3];
   const [noBallPopup, setNoBallPopup] = React.useState(false);
+  const [runOutPopup, setRunOutPopup] = React.useState(false);
+
   return (
-    <div className="">
+    <div>
       <TeamScoreBoard
         name={name}
         runs={runs}
@@ -76,18 +70,53 @@ export const UmpireControls = ({
         overs={overs}
         target={target}
       />
-      {noBallPopup && (
-        <Modal isOpen={true} title="No-ball Extras">
-          <div className="flex flex-col gap-6 items-center">
-            <p className="text-md font-italic dark:text-slate-700">
-              Select runs scored on No-ball
+
+      {/* Run-out popup */}
+      {runOutPopup && (
+        <Modal isOpen={true} title="Run Out — select runs">
+          <div className="flex flex-col gap-5 items-center">
+            <p className="text-sm" style={{ color: "var(--espn-muted)" }}>
+              Runs scored before the run out
             </p>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="ump-run-grid w-full">
+              {runOutRuns.map((run) => (
+                <button
+                  type="button"
+                  key={`runout-run-${run}`}
+                  className="ump-run-btn"
+                  onClick={() => {
+                    trackScore({ ballRuns: run, isWicket: true });
+                    setRunOutPopup(false);
+                  }}
+                >
+                  {run}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              className="ump-delete-btn"
+              onClick={() => setRunOutPopup(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* No-ball popup */}
+      {noBallPopup && (
+        <Modal isOpen={true} title="No-ball — select runs">
+          <div className="flex flex-col gap-5 items-center">
+            <p className="text-sm" style={{ color: "var(--espn-muted)" }}>
+              Runs scored off the bat on this no-ball
+            </p>
+            <div className="ump-run-grid w-full">
               {runButtons.map((run) => (
                 <button
                   type="button"
                   key={`noball-run-${run}`}
-                  className={`${RunsBtn} w-20`}
+                  className={`ump-run-btn${run === 4 ? " four" : run === 6 ? " six" : ""}`}
                   onClick={() => {
                     trackScore({
                       ballRuns: run + 1,
@@ -103,7 +132,7 @@ export const UmpireControls = ({
             </div>
             <button
               type="button"
-              className={DeleteBallBtn}
+              className="ump-delete-btn"
               onClick={() => {
                 trackScore({
                   ballRuns: 1,
@@ -114,26 +143,23 @@ export const UmpireControls = ({
                 setNoBallPopup(false);
               }}
             >
-              Run out
+              Run Out
             </button>
           </div>
         </Modal>
       )}
-      <div className="bg-white rounded-2xl shadow-xl px-4 py-6 space-y-8">
-        {/* Runs Section */}
-        <div>
-          <h3 className="text-lg font-semibold text-slate-700 mb-4">Runs</h3>
-          <div className="grid grid-cols-3 gap-3">
+
+      <div className="ump-controls">
+        {/* Runs */}
+        <div className="ump-section">
+          <div className="ump-section-label">Runs</div>
+          <div className="ump-run-grid">
             {runButtons.map((run) => (
               <button
                 type="button"
                 key={`run-${run}`}
-                className={RunsBtn}
-                onClick={() =>
-                  trackScore({
-                    ballRuns: run,
-                  })
-                }
+                className={`ump-run-btn${run === 4 ? " four" : run === 6 ? " six" : ""}`}
+                onClick={() => trackScore({ ballRuns: run })}
               >
                 {run}
               </button>
@@ -141,56 +167,59 @@ export const UmpireControls = ({
           </div>
         </div>
 
-        {/* Extras Section */}
-        <div>
-          <h3 className="text-lg font-semibold text-slate-700 mb-4">Extras</h3>
-          <div className="grid grid-cols-2 gap-3">
+        {/* Extras */}
+        <div className="ump-section">
+          <div className="ump-section-label">Extras</div>
+          <div className="ump-extra-grid">
             <button
               type="button"
-              className={UmpireExtraBtn}
+              className="ump-extra-btn"
               onClick={() =>
-                trackScore({
-                  ballRuns: 1,
-                  isExtra: true,
-                  extraType: "wide",
-                })
+                trackScore({ ballRuns: 1, isExtra: true, extraType: "wide" })
               }
             >
-              Wide 🤷‍♂️
+              Wide
             </button>
             <button
               type="button"
-              className={UmpireExtraBtn}
+              className="ump-extra-btn"
               onClick={() => setNoBallPopup(true)}
             >
-              No Ball 🚫
+              No Ball
             </button>
           </div>
         </div>
 
-        {/* Wicket Section */}
-        <div>
-          <button
-            type="button"
-            className={WicketBtn}
-            onClick={() =>
-              trackScore({
-                ballRuns: 0,
-                isWicket: true,
-              })
-            }
-          >
-            🏏 Wicket
-          </button>
+        {/* Wicket */}
+        <div className="ump-section">
+          <div className="ump-section-label">Wicket</div>
+          <div className="ump-extra-grid">
+            <button
+              type="button"
+              className="ump-wicket-btn"
+              onClick={() => trackScore({ ballRuns: 0, isWicket: true })}
+            >
+              Wicket
+            </button>
+            <button
+              type="button"
+              className="ump-wicket-btn"
+              onClick={() => setRunOutPopup(true)}
+            >
+              Run Out
+            </button>
+          </div>
         </div>
       </div>
-      <div className="mt-12">
+
+      {/* Delete */}
+      <div className="ump-delete-section">
         <button
           type="button"
-          className={DeleteBallBtn}
+          className="ump-delete-btn"
           onClick={deletePreviousBall}
         >
-          Delete previous ball
+          ← Delete Previous Ball
         </button>
       </div>
     </div>

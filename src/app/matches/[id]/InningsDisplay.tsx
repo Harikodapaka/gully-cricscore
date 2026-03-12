@@ -10,8 +10,10 @@ interface InningsDisplayProps {
 export function InningsDisplay({ balls, totalOvers }: InningsDisplayProps) {
   if (!balls?.length) {
     return (
-      <div className="text-center text-gray-500 py-8 font-semibold">
-        No balls bowled yet
+      <div className="ytb">
+        <div className="ytb-ico">🏏</div>
+        <div className="ytb-h">Innings In Progress</div>
+        <div className="ytb-p">Ball-by-ball updates will appear here</div>
       </div>
     );
   }
@@ -26,9 +28,19 @@ export function InningsDisplay({ balls, totalOvers }: InningsDisplayProps) {
           );
           if (ballsForOver.length === 0) return null;
 
+          const overRuns = ballsForOver.reduce(
+            (sum, b) => sum + (b.runs || 0),
+            0,
+          );
+          const overWickets = ballsForOver.filter((b) => b.isWicket).length;
+
           return (
-            <div key={`over-${overIdx + 1}`}>
-              <Divider over={overIdx + 1} />
+            <div key={`over-${overIdx + 1}`} className="over-group">
+              <Divider
+                over={overIdx + 1}
+                runs={overRuns}
+                wickets={overWickets}
+              />
               {ballsForOver.map((ball, i) => (
                 <BallDisplay
                   key={`ball-${overIdx + 1}-${i}`}

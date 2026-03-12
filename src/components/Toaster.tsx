@@ -60,13 +60,23 @@ export default function Toaster({
 
   return (
     <div
-      className={`fixed z-50 ${positions[position]} flex flex-col gap-2 items-center pointer-events-none`}
+      className={`fixed z-[9999] ${positions[position]} flex flex-col gap-2 items-center pointer-events-none`}
     >
       {toasts.map((toast) => (
         <div
           key={toast.id}
-          className={`px-4 py-2 rounded shadow text-white font-semibold pointer-events-auto transition-all
-            ${toast.type === "error" ? "bg-red-500" : toast.type === "success" ? "bg-green-500" : "bg-blue-500"}`}
+          className="px-4 py-2 rounded shadow font-semibold pointer-events-auto transition-all text-sm"
+          style={{
+            fontFamily: "var(--font-cond, 'Roboto Condensed', sans-serif)",
+            background:
+              toast.type === "error"
+                ? "var(--espn-red)"
+                : toast.type === "success"
+                  ? "#1a7a1a"
+                  : "#1a5fa8",
+            color: "#ffffff",
+            letterSpacing: "0.02em",
+          }}
         >
           {toast.message}
         </div>

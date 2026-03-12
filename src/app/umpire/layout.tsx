@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Alert from "@/components/Alert";
-import { OrangeBtnOutlined, PageContainer } from "@/components/Styles";
+import { OrangeBtnOutlined } from "@/components/Styles";
 import { Roles } from "@/types/roles";
 import { UnauthenticatedPage } from "./unauthenticatedPage";
 
@@ -27,7 +27,7 @@ export default function UmpireLayout({
 
   if (session.user.role === Roles.spectator.toString()) {
     return (
-      <div className={PageContainer}>
+      <div className="mx-auto max-w-[480px] px-4 py-5">
         <Alert
           variant="error"
           title="Oops!"

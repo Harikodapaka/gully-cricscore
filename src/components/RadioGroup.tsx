@@ -88,22 +88,26 @@ const RadioGroup = forwardRef<HTMLInputElement, RadioGroupProps>(
     const hasError = Boolean(errorMessage);
 
     return (
-      <div className="space-y-2">
-        <fieldset className="space-y-3">
-          <legend className="text-sm font-medium text-gray-900 dark:text-gray-300">
+      <div>
+        <fieldset style={{ border: "none", padding: 0, margin: 0 }}>
+          <legend className="form-radio-legend">
             {label}
-            {required && <span className="text-red-500 ml-1">*</span>}
+            {required && (
+              <span style={{ color: "var(--espn-red)", marginLeft: 2 }}>*</span>
+            )}
           </legend>
-
-          {options.map((option, _index) => (
-            <div key={option.value}>
+          <div className="flex flex-col gap-2">
+            {options.map((option, _index) => (
               <label
+                key={option.value}
                 htmlFor={`${name}-${option.value}`}
-                className="flex items-center justify-between gap-4 rounded border border-gray-300 bg-white p-3 text-sm font-medium shadow-sm transition-colors hover:bg-gray-50 has-[:checked]:border-blue-600 has-[:checked]:ring-1 has-[:checked]:ring-blue-600 cursor-pointer"
+                className="form-radio-item"
               >
-                <p className="text-gray-700">{option.label}</p>
+                <span>{option.label}</span>
                 {option.subtitle && (
-                  <p className="text-gray-900">{option.subtitle}</p>
+                  <span style={{ fontSize: 11, color: "var(--espn-dim)" }}>
+                    {option.subtitle}
+                  </span>
                 )}
                 <input
                   type="radio"
@@ -116,13 +120,11 @@ const RadioGroup = forwardRef<HTMLInputElement, RadioGroupProps>(
                   {...rest}
                 />
               </label>
-            </div>
-          ))}
+            ))}
+          </div>
         </fieldset>
 
-        {hasError && (
-          <p className="text-sm text-red-600 mt-1">{errorMessage}</p>
-        )}
+        {hasError && <p className="form-field-error">{errorMessage}</p>}
       </div>
     );
   },
