@@ -1,18 +1,18 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getServerSession } from "next-auth";
 import { PageContainer } from "@/components/Styles";
+import { authOptions } from "@/lib/auth";
 
 export default async function UserAdminPage() {
-    const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== "admin") {
-        redirect("/");
-    }
-    return (
-        <div className={PageContainer}>
-            <h2 className="text-2xl font-bold mb-4">User Admin Page</h2>
-            {/* Add user management UI here */}
-            <p>Welcome, Admin! Here you can manage users.</p>
-        </div>
-    );
+  const session = await getServerSession(authOptions);
+  if (!session || session.user.role !== "admin") {
+    redirect("/");
+  }
+  return (
+    <div className={PageContainer}>
+      <h2 className="text-2xl font-bold mb-4">User Admin Page</h2>
+      {/* Add user management UI here */}
+      <p>Welcome, Admin! Here you can manage users.</p>
+    </div>
+  );
 }

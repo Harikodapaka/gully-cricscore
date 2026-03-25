@@ -1,7 +1,12 @@
+import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
-import { Analytics } from '@vercel/analytics/next';
-import { Geist, Geist_Mono } from "next/font/google";
-import SessionProvider from '@/components/SessionProvider';
+import {
+  Geist,
+  Geist_Mono,
+  Hammersmith_One,
+  Roboto_Condensed,
+} from "next/font/google";
+import SessionProvider from "@/components/SessionProvider";
 import "./globals.css";
 import Header from "@/components/Header";
 import Toaster from "@/components/Toaster";
@@ -16,9 +21,26 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const hammersmithOne = Hammersmith_One({
+  variable: "--font-head",
+  subsets: ["latin"],
+  weight: "400",
+});
+
+const robotoCondensed = Roboto_Condensed({
+  variable: "--font-cond",
+  subsets: ["latin"],
+  weight: ["300", "400", "700"],
+});
+
 export const metadata: Metadata = {
   title: "CricScore",
   description: "CricScore - Made for gully cricket",
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default async function RootLayout({
@@ -29,10 +51,10 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased font-sans`}
+        className={`${geistSans.variable} ${geistMono.variable} ${hammersmithOne.variable} ${robotoCondensed.variable} antialiased font-sans`}
       >
         <SessionProvider>
-          <Toaster position="top-center" />
+          <Toaster position="bottom-center" />
           <Header />
           {children}
           <Analytics />
