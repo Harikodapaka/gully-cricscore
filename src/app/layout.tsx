@@ -38,6 +38,11 @@ export const metadata: Metadata = {
   description: "CricScore - Made for gully cricket",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
+
 export default async function RootLayout({
   children,
 }: Readonly<{
