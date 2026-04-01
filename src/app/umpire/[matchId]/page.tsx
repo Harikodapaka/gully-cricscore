@@ -4,7 +4,10 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { calculateBallsRemaining } from "@/app/utils/calculateBallsRemaining";
-import { calculateNextBall } from "@/app/utils/calculateNextBall";
+import {
+  BALLS_PER_OVER,
+  calculateNextBall,
+} from "@/app/utils/calculateNextBall";
 import LoadingOverlay from "@/components/LoadingOverlay";
 import Modal from "@/components/Modal";
 import {
@@ -13,6 +16,7 @@ import {
 } from "@/components/UmpireControls";
 import { INNINGS, MATCH_STATUS } from "@/constants/match";
 import { useMatchData } from "@/hooks/useMatchData";
+import { usePlayerTracking } from "@/hooks/usePlayerTracking";
 import { matchApi } from "@/services/matchApi";
 import {
   getInningsCompletionStatus,
@@ -23,7 +27,6 @@ import { showToast } from "@/utils/toast";
 export default function UmpireScorePage() {
   const { matchId } = useParams();
 
-  // Custom hook for match data
   const {
     match,
     teamDetails,
@@ -39,9 +42,39 @@ export default function UmpireScorePage() {
 
   const { runs, wickets, oversCompleted } = scoreState;
 
-  // Local state for UI
+  const {
+    playerState,
+    nextAvailableBatsman,
+    battingTeam,
+    bowlingTeam,
+    strikerName,
+    nonStrikerName,
+    bowlerName,
+    swapBatsmen,
+    setBowler,
+    handleWicketOut,
+    setPlayerState,
+  } = usePlayerTracking(match, matchId);
+
+  // UI state
   const [showInningsCompletePopup, setShowInningsCompletePopup] =
     useState(false);
+  const [showPlayerNamePopup, setShowPlayerNamePopup] = useState<{
+    teamId: string;
+    playerIndex: number;
+    currentName: string;
+  } | null>(null);
+  const [playerNameInput, setPlayerNameInput] = useState("");
+  const [showWicketSelectPopup, setShowWicketSelectPopup] = useState<{
+    score: TrackScoreProps;
+  } | null>(null);
+  const [showBowlerSelectPopup, setShowBowlerSelectPopup] = useState(false);
+  const [showSettingsPopup, setShowSettingsPopup] = useState(false);
+  const [settingsOvers, setSettingsOvers] = useState(0);
+  const [settingsPlayers, setSettingsPlayers] = useState(0);
+  const [showChangePlayerPopup, setShowChangePlayerPopup] = useState<
+    "striker" | "nonStriker" | null
+  >(null);
 
   // Ref to prevent duplicate transition calls
   const isTransitioningRef = useRef(false);
@@ -62,6 +95,7 @@ export default function UmpireScorePage() {
         }
 
         setShowInningsCompletePopup(false);
+        setShowBowlerSelectPopup(false);
       } catch (error) {
         console.error("Failed to transition innings:", error);
         showToast("Error transitioning innings", "error");
@@ -96,6 +130,8 @@ export default function UmpireScorePage() {
         isWicket,
         isExtra,
         extraType,
+        batsmanName: strikerName,
+        bowlerName: bowlerName,
         matchId,
       };
 
@@ -114,12 +150,36 @@ export default function UmpireScorePage() {
       try {
         const data = await matchApi.trackBall(body);
         setLastBallSaved(data.ball);
-        showToast("Saved 👍", "success");
+        showToast("Saved", "success");
+
+        const isLastMan =
+          scoreState.wickets + (isWicket ? 1 : 0) >=
+          (battingTeam?.numberOfPlayers ?? 0) - 1;
+
+        // Swap batsmen on odd bat-runs (1, 3) — skip if last man standing
+        // Wides: no bat runs (penalty only), no swap
+        // No-balls: bat runs = ballRuns - 1 (1 is the penalty)
+        // Normal: bat runs = ballRuns
+        let batRuns = ballRuns;
+        if (isExtra && extraType === "wide") batRuns = 0;
+        else if (isExtra && extraType === "noball") batRuns = ballRuns - 1;
+
+        if (!isLastMan && !isWicket && batRuns % 2 === 1) {
+          swapBatsmen();
+        }
+
+        // Check if over is complete (6th legal ball, not an extra)
+        if (!isExtra && ballNumber === BALLS_PER_OVER) {
+          // Swap batsmen at end of over — skip if last man standing
+          if (!isLastMan) {
+            swapBatsmen();
+          }
+          // Show bowler selection popup
+          setShowBowlerSelectPopup(true);
+        }
       } catch (error) {
         console.error("Error tracking score:", error);
         showToast("Score update failed", "error");
-
-        // Revert optimistic updates on error
         setScoreState(previousState);
       }
     },
@@ -128,8 +188,57 @@ export default function UmpireScorePage() {
       lastBallSaved,
       matchId,
       scoreState,
+      strikerName,
+      bowlerName,
       setScoreState,
       setLastBallSaved,
+      swapBatsmen,
+      battingTeam,
+    ],
+  );
+
+  // Process wicket: record the ball and auto-assign next available batsman
+  const processWicketWithAutoNext = useCallback(
+    async (score: TrackScoreProps, outIsStriker: boolean) => {
+      await trackScore(score);
+      handleWicketOut(outIsStriker);
+    },
+    [trackScore, handleWicketOut],
+  );
+
+  // Handle wicket - determine if we need to ask who is out
+  const handleWicketWithPlayerSelect = useCallback(
+    (score: TrackScoreProps) => {
+      const totalPlayers = battingTeam?.numberOfPlayers ?? 0;
+      const currentWickets = wickets; // wickets already fallen
+      const isLastWicket = currentWickets + 1 >= totalPlayers - 1;
+
+      if (isLastWicket && !score.isRunOut) {
+        // Last wicket (not run out) — striker is out, no new batsman needed
+        trackScore(score);
+        setPlayerState((prev) => ({
+          ...prev,
+          outPlayerIndexes: [...prev.outPlayerIndexes, prev.strikerIndex],
+          strikerIndex: prev.nonStrikerIndex,
+        }));
+        return;
+      }
+
+      // Run outs — always show popup to ask who is out (either batsman could be out)
+      if (score.isRunOut) {
+        setShowWicketSelectPopup({ score });
+        return;
+      }
+
+      // Regular wicket — striker is always out, auto-process
+      processWicketWithAutoNext(score, true);
+    },
+    [
+      battingTeam,
+      wickets,
+      trackScore,
+      processWicketWithAutoNext,
+      setPlayerState,
     ],
   );
 
@@ -160,7 +269,6 @@ export default function UmpireScorePage() {
 
     const ballsLeft = calculateBallsRemaining(match.overs ?? 0, oversCompleted);
 
-    // First innings - show remaining balls
     if (
       match.currentInnings !== INNINGS.SECOND ||
       !match.innings ||
@@ -169,7 +277,6 @@ export default function UmpireScorePage() {
       return `Remaining balls: ${ballsLeft}`;
     }
 
-    // Second innings - show target
     const firstInningsScore = match.innings?.[0]?.score ?? 0;
     const target = firstInningsScore + 1;
     const runsNeeded = target - runs;
@@ -192,7 +299,6 @@ export default function UmpireScorePage() {
       oversCompleted,
     );
 
-    // First innings - show popup
     if (
       match.currentInnings === INNINGS.FIRST &&
       (isAllOut || isOversCompleted)
@@ -201,7 +307,6 @@ export default function UmpireScorePage() {
       return;
     }
 
-    // Second innings - auto transition
     if (
       match.status === MATCH_STATUS.IN_PROGRESS &&
       match.currentInnings === INNINGS.SECOND
@@ -225,6 +330,68 @@ export default function UmpireScorePage() {
     transitionInnings,
   ]);
 
+  // Player name edit handler
+  const handlePlayerNameClick = useCallback(
+    (teamId: string, playerIndex: number, currentName: string) => {
+      setPlayerNameInput(currentName);
+      setShowPlayerNamePopup({ teamId, playerIndex, currentName });
+    },
+    [],
+  );
+
+  const savePlayerName = useCallback(async () => {
+    if (!showPlayerNamePopup || !playerNameInput.trim()) return;
+
+    try {
+      await matchApi.updateTeamPlayer(
+        showPlayerNamePopup.teamId,
+        showPlayerNamePopup.playerIndex,
+        playerNameInput.trim(),
+        matchId,
+      );
+      showToast("Player name updated", "success");
+      await fetchMatchData();
+    } catch (error) {
+      console.error("Failed to update player name:", error);
+      showToast("Failed to update name", "error");
+    } finally {
+      setShowPlayerNamePopup(null);
+    }
+  }, [showPlayerNamePopup, playerNameInput, fetchMatchData, matchId]);
+
+  // Settings save handler
+  const saveSettings = useCallback(async () => {
+    if (!matchId) return;
+
+    const updates: { overs?: number; numberOfPlayers?: number } = {};
+    if (settingsOvers !== match?.overs) updates.overs = settingsOvers;
+    if (settingsPlayers !== teamDetails?.numberOfPlayers)
+      updates.numberOfPlayers = settingsPlayers;
+
+    if (Object.keys(updates).length === 0) {
+      setShowSettingsPopup(false);
+      return;
+    }
+
+    try {
+      await matchApi.updateMatch(matchId, updates);
+      showToast("Match settings updated", "success");
+      await fetchMatchData();
+    } catch (error) {
+      console.error("Failed to update match:", error);
+      showToast("Failed to update settings", "error");
+    } finally {
+      setShowSettingsPopup(false);
+    }
+  }, [
+    matchId,
+    match,
+    teamDetails,
+    settingsOvers,
+    settingsPlayers,
+    fetchMatchData,
+  ]);
+
   // Initial fetch
   useEffect(() => {
     if (!matchId) return;
@@ -237,7 +404,6 @@ export default function UmpireScorePage() {
   }, [checkInningsCompletion]);
 
   // Persist match config to localStorage whenever a completed match is viewed
-  // so "Play Again" pre-fills the form even for matches not started from this session
   useEffect(() => {
     if (match?.status !== MATCH_STATUS.COMPLETED) return;
     const teamA = match.teams.find((t) => t.battingOrder === "1st");
@@ -265,7 +431,7 @@ export default function UmpireScorePage() {
               color: "var(--espn-text2)",
             }}
           >
-            🏆 {match.winnerMessage}
+            {match.winnerMessage}
           </p>
           <Link href="/umpire" className="form-submit">
             Play Again
@@ -318,6 +484,288 @@ export default function UmpireScorePage() {
   return (
     <div className="mx-auto max-w-[480px] px-4 py-5">
       {loading && <LoadingOverlay />}
+
+      {/* Player name edit popup */}
+      {showPlayerNamePopup && (
+        <Modal
+          isOpen={true}
+          onClose={() => setShowPlayerNamePopup(null)}
+          title="Edit Player Name"
+        >
+          <div className="flex flex-col gap-4">
+            <div className="ump-settings-field">
+              <label htmlFor="playerNameInput">Player Name</label>
+              <input
+                id="playerNameInput"
+                type="text"
+                value={playerNameInput}
+                onChange={(e) => setPlayerNameInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && savePlayerName()}
+              />
+            </div>
+            <button
+              type="button"
+              className="form-submit"
+              onClick={savePlayerName}
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              className="ump-delete-btn"
+              onClick={() => setShowPlayerNamePopup(null)}
+            >
+              Cancel
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Wicket: Who is out popup */}
+      {showWicketSelectPopup && (
+        <Modal
+          isOpen={true}
+          title="Who is out?"
+          onClose={() => setShowWicketSelectPopup(null)}
+        >
+          <div className="flex flex-col gap-4">
+            <p className="text-sm" style={{ color: "var(--espn-muted)" }}>
+              Next in:{" "}
+              {nextAvailableBatsman !== -1
+                ? (battingTeam?.players[nextAvailableBatsman] ??
+                  `Player ${nextAvailableBatsman + 1}`)
+                : "No one available"}
+            </p>
+            <div className="ump-player-list">
+              <button
+                type="button"
+                className="ump-player-list-btn"
+                onClick={async () => {
+                  const totalPlayers = battingTeam?.numberOfPlayers ?? 0;
+                  const isLastWicket = wickets + 1 >= totalPlayers - 1;
+                  if (isLastWicket) {
+                    await trackScore(showWicketSelectPopup.score);
+                    setPlayerState((prev) => ({
+                      ...prev,
+                      outPlayerIndexes: [
+                        ...prev.outPlayerIndexes,
+                        prev.strikerIndex,
+                      ],
+                      strikerIndex: prev.nonStrikerIndex,
+                    }));
+                  } else {
+                    await processWicketWithAutoNext(
+                      showWicketSelectPopup.score,
+                      true,
+                    );
+                  }
+                  setShowWicketSelectPopup(null);
+                }}
+              >
+                🏏 {strikerName} (Striker)
+              </button>
+              <button
+                type="button"
+                className="ump-player-list-btn"
+                onClick={async () => {
+                  const totalPlayers = battingTeam?.numberOfPlayers ?? 0;
+                  const isLastWicket = wickets + 1 >= totalPlayers - 1;
+                  if (isLastWicket) {
+                    await trackScore(showWicketSelectPopup.score);
+                    setPlayerState((prev) => ({
+                      ...prev,
+                      outPlayerIndexes: [
+                        ...prev.outPlayerIndexes,
+                        prev.nonStrikerIndex,
+                      ],
+                    }));
+                  } else {
+                    await processWicketWithAutoNext(
+                      showWicketSelectPopup.score,
+                      false,
+                    );
+                  }
+                  setShowWicketSelectPopup(null);
+                }}
+              >
+                🧍 {nonStrikerName} (Non-Striker)
+              </button>
+            </div>
+            <button
+              type="button"
+              className="ump-delete-btn"
+              onClick={() => setShowWicketSelectPopup(null)}
+            >
+              Cancel
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Bowler selection popup */}
+      {showBowlerSelectPopup && (
+        <Modal
+          isOpen={true}
+          title="Select Bowler"
+          onClose={() => setShowBowlerSelectPopup(false)}
+        >
+          <div className="flex flex-col gap-4">
+            <p className="text-sm" style={{ color: "var(--espn-muted)" }}>
+              Over complete. Select the next bowler.
+            </p>
+            <div className="ump-settings-field">
+              <select
+                value={playerState.bowlerIndex}
+                onChange={(e) => {
+                  setBowler(Number(e.target.value));
+                  setShowBowlerSelectPopup(false);
+                }}
+              >
+                {bowlingTeam?.players.map((playerName, index) => (
+                  <option key={`bowler-${playerName}`} value={index}>
+                    {playerName}
+                    {index === playerState.bowlerIndex ? " (current)" : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="button"
+              className="ump-delete-btn"
+              onClick={() => setShowBowlerSelectPopup(false)}
+            >
+              Continue with same bowler
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Change Striker / Non-Striker popup */}
+      {showChangePlayerPopup && battingTeam && (
+        <Modal
+          isOpen={true}
+          onClose={() => setShowChangePlayerPopup(null)}
+          title={
+            showChangePlayerPopup === "striker"
+              ? "Change Striker"
+              : "Change Non-Striker"
+          }
+        >
+          <div className="flex flex-col gap-4">
+            <p className="text-sm" style={{ color: "var(--espn-muted)" }}>
+              {showChangePlayerPopup === "striker"
+                ? "Select who will be on strike"
+                : "Select the non-striker"}
+            </p>
+            <div className="ump-settings-field">
+              <select
+                value={
+                  showChangePlayerPopup === "striker"
+                    ? playerState.strikerIndex
+                    : playerState.nonStrikerIndex
+                }
+                onChange={(e) => {
+                  const index = Number(e.target.value);
+                  setPlayerState((prev) => ({
+                    ...prev,
+                    [showChangePlayerPopup === "striker"
+                      ? "strikerIndex"
+                      : "nonStrikerIndex"]: index,
+                  }));
+                  setShowChangePlayerPopup(null);
+                }}
+              >
+                {battingTeam.players
+                  .map((name, index) => ({ name, index }))
+                  .filter(({ index }) => {
+                    if (playerState.outPlayerIndexes?.includes(index))
+                      return false;
+                    if (
+                      showChangePlayerPopup === "striker" &&
+                      index === playerState.nonStrikerIndex
+                    )
+                      return false;
+                    if (
+                      showChangePlayerPopup === "nonStriker" &&
+                      index === playerState.strikerIndex
+                    )
+                      return false;
+                    return true;
+                  })
+                  .map(({ name, index }) => {
+                    const isCurrent =
+                      (showChangePlayerPopup === "striker" &&
+                        index === playerState.strikerIndex) ||
+                      (showChangePlayerPopup === "nonStriker" &&
+                        index === playerState.nonStrikerIndex);
+                    return (
+                      <option key={`change-player-${index}`} value={index}>
+                        {name}
+                        {isCurrent ? " (current)" : ""}
+                      </option>
+                    );
+                  })}
+              </select>
+            </div>
+            <button
+              type="button"
+              className="ump-delete-btn"
+              onClick={() => setShowChangePlayerPopup(null)}
+            >
+              Cancel
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Match settings popup */}
+      {showSettingsPopup && (
+        <Modal
+          isOpen={true}
+          onClose={() => setShowSettingsPopup(false)}
+          title="Match Settings"
+        >
+          <div className="ump-settings-form">
+            <div className="ump-settings-field">
+              <label htmlFor="settingsOvers">Total Overs (max 50)</label>
+              <input
+                id="settingsOvers"
+                type="number"
+                min={1}
+                max={50}
+                value={settingsOvers}
+                onChange={(e) => setSettingsOvers(Number(e.target.value))}
+              />
+            </div>
+            <div className="ump-settings-field">
+              <label htmlFor="settingsPlayers">Players Per Team (max 11)</label>
+              <input
+                id="settingsPlayers"
+                type="number"
+                min={2}
+                max={11}
+                value={settingsPlayers}
+                onChange={(e) => setSettingsPlayers(Number(e.target.value))}
+              />
+            </div>
+            <button
+              type="button"
+              className="form-submit"
+              onClick={saveSettings}
+            >
+              Save Changes
+            </button>
+            <button
+              type="button"
+              className="ump-delete-btn"
+              onClick={() => setShowSettingsPopup(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </Modal>
+      )}
+
       {matchId && match && (
         <UmpireControls
           trackScore={trackScore}
@@ -327,6 +775,42 @@ export default function UmpireScorePage() {
           overs={oversCompleted}
           target={getTargetText()}
           deletePreviousBall={deletePreviousBall}
+          playerInfo={{
+            strikerName,
+            nonStrikerName,
+            bowlerName,
+            battingTeam,
+            bowlingTeam,
+            strikerIndex: playerState.strikerIndex,
+            nonStrikerIndex: playerState.nonStrikerIndex,
+            bowlerIndex: playerState.bowlerIndex,
+            nextBatsmanIndex: playerState.nextBatsmanIndex,
+          }}
+          onPlayerNameClick={handlePlayerNameClick}
+          onWicketWithPlayerSelect={handleWicketWithPlayerSelect}
+          onSwapBatsmen={swapBatsmen}
+          onChangeBowler={() => setShowBowlerSelectPopup(true)}
+          onChangeStriker={
+            match.currentInnings === 2
+              ? () => setShowChangePlayerPopup("striker")
+              : undefined
+          }
+          onChangeNonStriker={
+            match.currentInnings === 2
+              ? () => setShowChangePlayerPopup("nonStriker")
+              : undefined
+          }
+          onSettingsClick={
+            match.currentInnings === 1
+              ? () => {
+                  setSettingsOvers(match.overs);
+                  setSettingsPlayers(teamDetails?.numberOfPlayers ?? 11);
+                  setShowSettingsPopup(true);
+                }
+              : undefined
+          }
+          onOverComplete={() => setShowBowlerSelectPopup(true)}
+          totalOvers={match.overs}
         />
       )}
     </div>

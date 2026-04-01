@@ -7,7 +7,7 @@ vi.mock("@/lib/mongodb", () => ({
   default: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("@/lib/logger", () => ({
-  logger: { error: vi.fn(), debug: vi.fn(), warn: vi.fn() },
+  logger: { error: vi.fn(), debug: vi.fn(), warn: vi.fn(), info: vi.fn() },
 }));
 vi.mock("@/lib/auth", () => ({ authOptions: {} }));
 
@@ -187,6 +187,9 @@ describe("POST /api/ball", () => {
 
     const { POST } = await import("@/app/api/ball/route");
     await POST(makePost(validBody));
+
+    // Pusher is fire-and-forget — flush microtask queue
+    await new Promise((r) => setTimeout(r, 0));
 
     expect(mockTrigger).toHaveBeenCalledWith(
       `match-${MATCH_ID}`,

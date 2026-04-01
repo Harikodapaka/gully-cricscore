@@ -9,6 +9,8 @@ export interface BallPayload {
   isWicket: boolean;
   isExtra: boolean;
   extraType: string;
+  batsmanName?: string;
+  bowlerName?: string;
   matchId: string | string[];
 }
 
@@ -55,8 +57,38 @@ export const matchApi = {
     return response.json();
   },
 
-  // Task 7: Pass matchId as a query param so the DELETE route doesn't need
-  // an extra Match.findOne() DB call just to get the matchId for Pusher.
+  updateMatch: async (
+    matchId: string | string[],
+    body: { overs?: number; numberOfPlayers?: number },
+  ): Promise<{ message: string }> => {
+    const response = await fetch(`${API_BASE_URL}/api/match/${matchId}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+      headers: { "Content-Type": "application/json" },
+    });
+    if (!response.ok) {
+      throw new Error("Failed to update match");
+    }
+    return response.json();
+  },
+
+  updateTeamPlayer: async (
+    teamId: string,
+    playerIndex: number,
+    playerName: string,
+    matchId?: string | string[],
+  ): Promise<{ message: string; data: { _id: string; players: string[] } }> => {
+    const response = await fetch(`${API_BASE_URL}/api/team/${teamId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ playerIndex, playerName, matchId }),
+      headers: { "Content-Type": "application/json" },
+    });
+    if (!response.ok) {
+      throw new Error("Failed to update player name");
+    }
+    return response.json();
+  },
+
   deleteBall: async (
     ballId: string,
     matchId: string | string[],

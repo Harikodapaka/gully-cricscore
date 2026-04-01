@@ -14,6 +14,8 @@ export interface IBall extends Document {
   isWicket: boolean;
   isExtra: boolean;
   extraType: "none" | "wide" | "noball";
+  batsmanName?: string;
+  bowlerName?: string;
   timestamp: Date;
 }
 
@@ -29,6 +31,8 @@ const BallSchema = new Schema<IBall>({
     enum: ["none", "wide", "noball"],
     default: "none",
   },
+  batsmanName: { type: String },
+  bowlerName: { type: String },
   timestamp: { type: Date, default: Date.now },
 });
 

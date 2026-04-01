@@ -8,6 +8,9 @@ export const logger = {
   debug: (...args: unknown[]) => {
     if (isDev) console.log(...args);
   },
+  info: (...args: unknown[]) => {
+    console.log(...args);
+  },
   error: (...args: unknown[]) => {
     console.error(...args);
   },

@@ -2,10 +2,12 @@ export const Divider = ({
   over,
   runs,
   wickets,
+  bowlerName,
 }: {
   over: number;
   runs: number;
   wickets: number;
+  bowlerName?: string;
 }) => {
   const summary =
     wickets > 0
@@ -14,7 +16,10 @@ export const Divider = ({
 
   return (
     <div className="over-head">
-      <span className="over-lbl">Over {over}</span>
+      <span className="over-lbl">
+        Over {over}
+        {bowlerName ? ` — ${bowlerName}` : ""}
+      </span>
       <span className="over-summary">{summary}</span>
     </div>
   );

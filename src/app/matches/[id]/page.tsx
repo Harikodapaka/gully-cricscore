@@ -15,6 +15,7 @@ import type { BallDTO, MatchDTO } from "@/types/dto";
 import { showToast } from "@/utils/toast";
 import { toId } from "@/utils/toId";
 import { InningsDisplay } from "./InningsDisplay";
+import { PlayerScoreboard } from "./PlayerScoreboard";
 import { ScoreCard } from "./scoreCard";
 
 export default function MatchDetails() {
@@ -295,10 +296,23 @@ export default function MatchDetails() {
           <div className="ytb-p">Ball-by-ball updates will appear here</div>
         </div>
       ) : (
-        <InningsDisplay
-          balls={selectedInningsData?.balls ?? []}
-          totalOvers={matchData.overs}
-        />
+        <>
+          <PlayerScoreboard
+            balls={selectedInningsData?.balls ?? []}
+            battingTeamName={
+              teamsById.get(toId(selectedInningsData?.battingTeamId))?.name ??
+              "Batting"
+            }
+            bowlingTeamName={
+              teamsById.get(toId(selectedInningsData?.bowlingTeamId))?.name ??
+              "Bowling"
+            }
+          />
+          <InningsDisplay
+            balls={selectedInningsData?.balls ?? []}
+            totalOvers={matchData.overs}
+          />
+        </>
       )}
     </div>
   );
