@@ -33,6 +33,8 @@ export function InningsDisplay({ balls, totalOvers }: InningsDisplayProps) {
             0,
           );
           const overWickets = ballsForOver.filter((b) => b.isWicket).length;
+          // Bowler name from the first ball of the over (all balls in an over share the same bowler)
+          const bowlerName = ballsForOver.find((b) => b.bowlerName)?.bowlerName;
 
           return (
             <div key={`over-${overIdx + 1}`} className="over-group">
@@ -40,6 +42,7 @@ export function InningsDisplay({ balls, totalOvers }: InningsDisplayProps) {
                 over={overIdx + 1}
                 runs={overRuns}
                 wickets={overWickets}
+                bowlerName={bowlerName}
               />
               {ballsForOver.map((ball, i) => (
                 <BallDisplay
@@ -49,6 +52,7 @@ export function InningsDisplay({ balls, totalOvers }: InningsDisplayProps) {
                   isWicket={ball.isWicket}
                   extraType={ball.extraType}
                   overNumber={ball.overNumber}
+                  batsmanName={ball.batsmanName}
                 />
               ))}
             </div>

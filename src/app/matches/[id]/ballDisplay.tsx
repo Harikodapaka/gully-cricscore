@@ -109,12 +109,14 @@ export const BallDisplay = ({
   overNumber,
   isWicket,
   extraType,
+  batsmanName,
 }: {
   ballNumber: number;
   runs: number;
   overNumber: number;
   isWicket?: boolean;
   extraType?: string;
+  batsmanName?: string;
 }) => {
   const seed = overNumber * 10 + ballNumber;
   const { circleClass, rowClass, label } = getBallStyle(
@@ -127,7 +129,10 @@ export const BallDisplay = ({
   return (
     <div className={`ball-row${rowClass ? ` ${rowClass}` : ""}`}>
       <div className={`ball-circle ${circleClass}`}>{label}</div>
-      <div className="ball-main">{message}</div>
+      <div className="ball-main">
+        <div>{message}</div>
+        {batsmanName && <div className="ball-players">{batsmanName}</div>}
+      </div>
       <div className="ball-num">
         {overNumber}.{ballNumber}
       </div>

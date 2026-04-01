@@ -42,7 +42,7 @@ export async function GET(_req: NextRequest, context: RouteParams) {
     const matchDoc = await Match.findById(matchId)
       .populate({
         path: "teams",
-        select: "_id name numberOfPlayers battingOrder",
+        select: "_id name numberOfPlayers battingOrder players",
       })
       .populate({ path: "innings" })
       .lean();
@@ -96,12 +96,22 @@ export async function GET(_req: NextRequest, context: RouteParams) {
       wonBy: matchDoc.wonBy ? String(matchDoc.wonBy) : undefined,
       winnerMessage: matchDoc.winnerMessage,
       teams: (matchDoc.teams as unknown as Record<string, unknown>[]).map(
-        (t) => ({
-          _id: String(t._id),
-          name: String(t.name),
-          numberOfPlayers: Number(t.numberOfPlayers),
-          battingOrder: t.battingOrder as "1st" | "2nd",
-        }),
+        (t) => {
+          const numPlayers = Number(t.numberOfPlayers);
+          const existingPlayers = (t.players as string[]) || [];
+          // Ensure players array has entries for all players (backfill defaults)
+          const players = Array.from(
+            { length: numPlayers },
+            (_, i) => existingPlayers[i] || `Player ${i + 1}`,
+          );
+          return {
+            _id: String(t._id),
+            name: String(t.name),
+            numberOfPlayers: numPlayers,
+            battingOrder: t.battingOrder as "1st" | "2nd",
+            players,
+          };
+        },
       ),
       innings: inningsWithOversAndBalls.map((inn) => ({
         _id: String(inn._id),
@@ -123,6 +133,8 @@ export async function GET(_req: NextRequest, context: RouteParams) {
           isWicket: b.isWicket,
           isExtra: b.isExtra,
           extraType: b.extraType as "none" | "wide" | "noball",
+          batsmanName: b.batsmanName,
+          bowlerName: b.bowlerName,
           timestamp: String(b.timestamp),
         })),
       })),

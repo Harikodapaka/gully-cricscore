@@ -9,15 +9,20 @@ import Ball from "@/models/Ball";
 import Innings from "@/models/Innings";
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session || (session.user as { role?: string })?.role === "spectator") {
-    return NextResponse.json({ message: "Forbidden" }, { status: 403 });
-  }
-
+  const t0 = performance.now();
   try {
-    await dbConnect();
+    // 1. Run auth, body parse, and DB connect in parallel
+    const [session, body] = await Promise.all([
+      getServerSession(authOptions),
+      req.json(),
+      dbConnect(),
+    ]);
+    const t1 = performance.now();
+    logger.info(`[Ball POST] auth+body+dbConnect: ${(t1 - t0).toFixed(0)}ms`);
 
-    const body = await req.json();
+    if (!session || (session.user as { role?: string })?.role === "spectator") {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
 
     const {
       inningsId,
@@ -27,6 +32,8 @@ export async function POST(req: NextRequest) {
       isWicket = false,
       isExtra = false,
       extraType = "none",
+      batsmanName,
+      bowlerName,
       matchId,
     } = body;
 
@@ -47,15 +54,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const innings = await Innings.findById(inningsId);
+    // 2. Fetch innings and start session in parallel
+    const [innings, dbSession] = await Promise.all([
+      Innings.findById(inningsId),
+      mongoose.startSession(),
+    ]);
+    const t2 = performance.now();
+    logger.info(
+      `[Ball POST] findInnings+startSession: ${(t2 - t1).toFixed(0)}ms`,
+    );
+
     if (!innings) {
+      dbSession.endSession();
       return NextResponse.json(
         { message: "Innings not found" },
         { status: 404 },
       );
     }
 
-    const dbSession = await mongoose.startSession();
+    // 3. Transaction: create ball + update innings (kept for fault tolerance)
     dbSession.startTransaction();
 
     let newBall: InstanceType<typeof Ball>;
@@ -70,16 +87,24 @@ export async function POST(req: NextRequest) {
             isWicket,
             isExtra,
             extraType,
+            batsmanName,
+            bowlerName,
           },
         ],
         { session: dbSession },
       );
+      const t3a = performance.now();
+      logger.info(`[Ball POST] Ball.create: ${(t3a - t2).toFixed(0)}ms`);
 
       innings.score += runs;
       if (isWicket) innings.wickets += 1;
       await innings.save({ session: dbSession });
+      const t3b = performance.now();
+      logger.info(`[Ball POST] innings.save: ${(t3b - t3a).toFixed(0)}ms`);
 
       await dbSession.commitTransaction();
+      const t3c = performance.now();
+      logger.info(`[Ball POST] commit: ${(t3c - t3b).toFixed(0)}ms`);
     } catch (txError) {
       await dbSession.abortTransaction();
       throw txError;
@@ -87,7 +112,13 @@ export async function POST(req: NextRequest) {
       dbSession.endSession();
     }
 
-    await pusherServer.trigger(`match-${matchId}`, "score-update", newBall);
+    const tTotal = performance.now();
+    logger.info(`[Ball POST] TOTAL: ${(tTotal - t0).toFixed(0)}ms`);
+
+    // 4. Fire-and-forget Pusher — don't block the response
+    pusherServer
+      .trigger(`match-${matchId}`, "score-update", newBall)
+      .catch((err) => logger.error("Pusher trigger failed:", err));
 
     return NextResponse.json(
       { message: "Ball created successfully", ball: newBall },

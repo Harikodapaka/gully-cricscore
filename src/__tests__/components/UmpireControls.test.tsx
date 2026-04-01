@@ -5,13 +5,60 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TrackScoreProps } from "@/components/UmpireControls";
 import { UmpireControls } from "@/components/UmpireControls";
 
+const DEFAULT_PLAYER_INFO = {
+  strikerName: "Player 1",
+  nonStrikerName: "Player 2",
+  bowlerName: "Player 1",
+  battingTeam: {
+    _id: "team1",
+    name: "Team Alpha",
+    numberOfPlayers: 6,
+    battingOrder: "1st" as const,
+    players: [
+      "Player 1",
+      "Player 2",
+      "Player 3",
+      "Player 4",
+      "Player 5",
+      "Player 6",
+    ],
+  },
+  bowlingTeam: {
+    _id: "team2",
+    name: "Team Beta",
+    numberOfPlayers: 6,
+    battingOrder: "2nd" as const,
+    players: [
+      "Player 1",
+      "Player 2",
+      "Player 3",
+      "Player 4",
+      "Player 5",
+      "Player 6",
+    ],
+  },
+  strikerIndex: 0,
+  nonStrikerIndex: 1,
+  bowlerIndex: 0,
+  nextBatsmanIndex: 2,
+};
+
 const DEFAULT_PROPS = {
   name: "Team Alpha",
   runs: 42,
   wickets: 3,
   overs: "2.4",
-  trackScore: vi.fn<[TrackScoreProps], void>(),
+  trackScore: vi.fn() as unknown as ReturnType<typeof vi.fn> &
+    ((score: TrackScoreProps) => void),
   deletePreviousBall: vi.fn(),
+  playerInfo: DEFAULT_PLAYER_INFO,
+  onPlayerNameClick: vi.fn(),
+  onWicketWithPlayerSelect: vi.fn(),
+  onSwapBatsmen: vi.fn(),
+  onChangeBowler: vi.fn(),
+  onSettingsClick: vi.fn(),
+  onOverComplete: vi.fn(),
+  totalOvers: 10,
 };
 
 // Helper: get the ump-controls container (below the scoreboard)
@@ -150,7 +197,7 @@ describe("UmpireControls", () => {
     expect(screen.getByText("No-ball — select runs")).toBeInTheDocument();
   });
 
-  it("No Ball popup: Run Out button calls trackScore with noball + isWicket and closes popup", async () => {
+  it("No Ball popup: Run Out button calls onWicketWithPlayerSelect with noball + isWicket and closes popup", async () => {
     const user = userEvent.setup();
     render(<UmpireControls {...DEFAULT_PROPS} />);
     await user.click(screen.getByRole("button", { name: "No Ball" }));
@@ -159,11 +206,12 @@ describe("UmpireControls", () => {
     const dialog = screen.getByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "Run Out" }));
 
-    expect(DEFAULT_PROPS.trackScore).toHaveBeenCalledWith({
+    expect(DEFAULT_PROPS.onWicketWithPlayerSelect).toHaveBeenCalledWith({
       ballRuns: 1,
       isExtra: true,
       extraType: "noball",
       isWicket: true,
+      isRunOut: true,
     });
     expect(screen.queryByText("No-ball — select runs")).not.toBeInTheDocument();
   });
@@ -201,12 +249,11 @@ describe("UmpireControls", () => {
 
   // ─── Wicket ───────────────────────────────────────────────────────────────
 
-  it("calls trackScore with isWicket true when Wicket button is clicked", async () => {
+  it("calls onWicketWithPlayerSelect with isWicket true when Wicket button is clicked", async () => {
     const user = userEvent.setup();
     render(<UmpireControls {...DEFAULT_PROPS} />);
-    // "Wicket" is both a label and a button — use getByRole to target only the button
     await user.click(screen.getByRole("button", { name: "Wicket" }));
-    expect(DEFAULT_PROPS.trackScore).toHaveBeenCalledWith({
+    expect(DEFAULT_PROPS.onWicketWithPlayerSelect).toHaveBeenCalledWith({
       ballRuns: 0,
       isWicket: true,
     });
@@ -223,7 +270,7 @@ describe("UmpireControls", () => {
     expect(screen.getByText("Run Out — select runs")).toBeInTheDocument();
   });
 
-  it("Run Out popup: selecting 2 runs calls trackScore with isWicket and ballRuns 2", async () => {
+  it("Run Out popup: selecting 2 runs calls onWicketWithPlayerSelect with isWicket and ballRuns 2", async () => {
     const user = userEvent.setup();
     render(<UmpireControls {...DEFAULT_PROPS} />);
     await user.click(screen.getByRole("button", { name: "Run Out" }));
@@ -231,9 +278,10 @@ describe("UmpireControls", () => {
     const dialog = screen.getByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "2" }));
 
-    expect(DEFAULT_PROPS.trackScore).toHaveBeenCalledWith({
+    expect(DEFAULT_PROPS.onWicketWithPlayerSelect).toHaveBeenCalledWith({
       ballRuns: 2,
       isWicket: true,
+      isRunOut: true,
     });
     expect(screen.queryByText("Run Out — select runs")).not.toBeInTheDocument();
   });

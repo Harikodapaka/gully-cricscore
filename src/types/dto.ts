@@ -7,6 +7,7 @@ export interface TeamDTO {
   name: string;
   numberOfPlayers: number;
   battingOrder: "1st" | "2nd";
+  players: string[];
 }
 
 export interface BallDTO {
@@ -18,6 +19,8 @@ export interface BallDTO {
   isWicket: boolean;
   isExtra: boolean;
   extraType: "none" | "wide" | "noball";
+  batsmanName?: string;
+  bowlerName?: string;
   timestamp: string;
 }
 

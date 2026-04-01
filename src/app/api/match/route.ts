@@ -116,11 +116,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Generate default player names
+    const defaultPlayers = Array.from(
+      { length: noOfPlayers },
+      (_, i) => `Player ${i + 1}`,
+    );
+
     // 1️⃣ Create Team A
     const teamA = await Team.create({
       name: teamAName,
       numberOfPlayers: noOfPlayers,
       battingOrder: tossWonBy === "teamA" ? "1st" : "2nd",
+      players: defaultPlayers,
     });
 
     // 2️⃣ Create Team B
@@ -128,6 +135,7 @@ export async function POST(req: NextRequest) {
       name: teamBName,
       numberOfPlayers: noOfPlayers,
       battingOrder: tossWonBy === "teamB" ? "1st" : "2nd",
+      players: defaultPlayers,
     });
 
     // 3️⃣ Create Match
