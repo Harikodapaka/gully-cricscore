@@ -790,16 +790,8 @@ export default function UmpireScorePage() {
           onWicketWithPlayerSelect={handleWicketWithPlayerSelect}
           onSwapBatsmen={swapBatsmen}
           onChangeBowler={() => setShowBowlerSelectPopup(true)}
-          onChangeStriker={
-            match.currentInnings === 2
-              ? () => setShowChangePlayerPopup("striker")
-              : undefined
-          }
-          onChangeNonStriker={
-            match.currentInnings === 2
-              ? () => setShowChangePlayerPopup("nonStriker")
-              : undefined
-          }
+          onChangeStriker={() => setShowChangePlayerPopup("striker")}
+          onChangeNonStriker={() => setShowChangePlayerPopup("nonStriker")}
           onSettingsClick={
             match.currentInnings === 1
               ? () => {
